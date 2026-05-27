@@ -1,0 +1,81 @@
+name: Build mobile apps
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: retro_tech_marketplace
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: retro-tech-marketplace-android-apk
+          path: retro_tech_marketplace/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS app
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: retro_tech_marketplace
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package iOS app
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/ios/iphoneos/retro-tech-marketplace-ios-unsigned.zip
+
+      - name: Upload iOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: retro-tech-marketplace-ios-unsigned
+          path: retro_tech_marketplace/build/ios/iphoneos/retro-tech-marketplace-ios-unsigned.zip
+          if-no-files-found: error

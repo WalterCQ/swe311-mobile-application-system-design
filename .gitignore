@@ -1,0 +1,8 @@
+.DS_Store
+
+# Coursework report artifacts are kept out of the public repository.
+*报告*.docx
+*报告*.pdf
+build_chinese_report.py
+report_assets/
+report_rendered/
