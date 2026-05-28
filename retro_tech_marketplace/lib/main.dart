@@ -156,6 +156,7 @@ class AppTheme {
   static const glass = Color(0xAFFFFFFF);
   static const white = Color(0xFFFFFFFF);
   static const bg = Color(0xFFF7FAFF);
+  static const detailBg = Color(0xFFF5F5F5);
 
   static ThemeData get theme {
     return ThemeData(
@@ -458,6 +459,7 @@ class ListingStore extends ChangeNotifier {
 
 class Assets {
   static const background = 'assets/images/aero-background.png';
+  static const detailBackground = 'assets/images/detail-background.png';
   static const loginBackground = 'assets/images/login-background.png';
   static const logoMark = 'assets/images/retro-tech-mark.png';
   static const homeAvatar = 'assets/images/home-avatar.png';
@@ -510,7 +512,7 @@ final seedListings = <Listing>[
     price: 1599,
     condition: 'Used - Excellent',
     description:
-        'Transparent iPod Classic 4th Gen with 40GB storage. Perfect working condition.',
+        'The iconic iPod Classic 4th Gen with 40GB storage. Perfect working condition.',
     storage: '40GB',
     battery: '14h',
     connector: '30-Pin',
@@ -653,6 +655,7 @@ class GlassScaffold extends StatelessWidget {
     this.includeSafeArea = true,
     this.backgroundAsset = Assets.background,
     this.backgroundOverlay = true,
+    this.background,
   });
 
   final Widget child;
@@ -660,6 +663,7 @@ class GlassScaffold extends StatelessWidget {
   final bool includeSafeArea;
   final String backgroundAsset;
   final bool backgroundOverlay;
+  final Widget? background;
 
   @override
   Widget build(BuildContext context) {
@@ -679,10 +683,11 @@ class GlassScaffold extends StatelessWidget {
               height: constraints.maxHeight,
               child: Stack(
                 children: [
-                  AeroBackground(
-                    asset: backgroundAsset,
-                    includeOverlay: backgroundOverlay,
-                  ),
+                  background ??
+                      AeroBackground(
+                        asset: backgroundAsset,
+                        includeOverlay: backgroundOverlay,
+                      ),
                   content,
                   if (bottomNavigationBar != null)
                     Positioned(
@@ -758,6 +763,70 @@ class AeroBackground extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class DetailAeroBackground extends StatelessWidget {
+  const DetailAeroBackground({super.key, this.asset = Assets.detailBackground});
+
+  final String asset;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final heroHeight = (constraints.maxHeight * 0.5)
+            .clamp(448.0, 478.0)
+            .toDouble();
+        final imageWidth = constraints.maxWidth * 1.1364;
+        final imageHeight = heroHeight * 1.8578;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: AppTheme.detailBg),
+            Positioned(
+              left: 0,
+              top: 0,
+              right: 0,
+              height: heroHeight,
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: constraints.maxWidth - imageWidth,
+                      top: 0,
+                      width: imageWidth,
+                      height: imageHeight,
+                      child: Image.asset(
+                        asset,
+                        fit: BoxFit.fill,
+                        filterQuality: FilterQuality.high,
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              AppTheme.detailBg,
+                              AppTheme.detailBg.withValues(alpha: 0.45),
+                              AppTheme.detailBg.withValues(alpha: 0),
+                            ],
+                            stops: const [0, 0.1, 0.24],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1132,10 +1201,7 @@ class _HomeListingCard extends StatelessWidget {
                         text: isMotorola ? 'Motorola\n' : '${listing.title}\n',
                       ),
                       TextSpan(text: isIpod ? '4th Gen ' : listing.subtitle),
-                      TextSpan(
-                        text: '.',
-                        style: TextStyle(color: AppTheme.red),
-                      ),
+                      _accentSquare(size: 9),
                     ],
                   ),
                 ),
@@ -1304,7 +1370,7 @@ class GlassListRow extends StatelessWidget {
   }
 }
 
-class GlassInput extends StatelessWidget {
+class GlassInput extends StatefulWidget {
   const GlassInput({
     super.key,
     required this.controller,
@@ -1323,26 +1389,65 @@ class GlassInput extends StatelessWidget {
   final int maxLines;
 
   @override
+  State<GlassInput> createState() => _GlassInputState();
+}
+
+class _GlassInputState extends State<GlassInput> {
+  late bool _obscured;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscured = widget.obscure;
+  }
+
+  @override
+  void didUpdateWidget(covariant GlassInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.obscure != widget.obscure) {
+      _obscured = widget.obscure;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GlassCard(
       radius: 22,
       padding: EdgeInsets.symmetric(
         horizontal: 18,
-        vertical: maxLines > 1 ? 6 : 0,
+        vertical: widget.maxLines > 1 ? 6 : 0,
       ),
       opacity: 0.46,
       child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscure,
-        maxLines: maxLines,
+        controller: widget.controller,
+        keyboardType: widget.keyboardType,
+        obscureText: _obscured,
+        maxLines: widget.maxLines,
         style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.ink),
         decoration: InputDecoration(
-          icon: Icon(icon, color: AppTheme.blue, size: 18),
-          hintText: hint,
+          icon: Icon(widget.icon, color: AppTheme.blue, size: 18),
+          hintText: widget.hint,
           hintStyle: AppTheme.body.copyWith(
             color: AppTheme.muted.withValues(alpha: 0.78),
           ),
+          suffixIcon: widget.obscure
+              ? IconButton(
+                  onPressed: () => setState(() => _obscured = !_obscured),
+                  icon: Icon(
+                    _obscured
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    color: AppTheme.muted,
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints.tight(Size(24, 28)),
+                  splashRadius: 18,
+                )
+              : null,
+          suffixIconConstraints: widget.obscure
+              ? BoxConstraints.tight(Size(24, 32))
+              : null,
           border: InputBorder.none,
         ),
       ),
@@ -1403,6 +1508,32 @@ class ProductImage extends StatelessWidget {
   }
 }
 
+InlineSpan _accentSquare({required double size, double gap = 5}) {
+  return WidgetSpan(
+    alignment: PlaceholderAlignment.baseline,
+    baseline: TextBaseline.alphabetic,
+    child: Padding(
+      padding: EdgeInsets.only(left: gap),
+      child: _AccentSquare(size: size),
+    ),
+  );
+}
+
+class _AccentSquare extends StatelessWidget {
+  const _AccentSquare({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: const ColoredBox(color: AppTheme.red),
+    );
+  }
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.store});
 
@@ -1444,9 +1575,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(color: AppTheme.blue),
                   ),
                   TextSpan(
-                    text: 'Back.',
+                    text: 'Back',
                     style: TextStyle(color: AppTheme.red),
                   ),
+                  _accentSquare(size: 8),
                 ],
               ),
             ),
@@ -2067,9 +2199,10 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             TextSpan(text: 'Rediscover\n'),
             TextSpan(
-              text: 'Iconic.',
+              text: 'Iconic',
               style: TextStyle(color: AppTheme.red),
             ),
+            _accentSquare(size: 13, gap: 7),
           ],
         ),
       ),
@@ -2200,76 +2333,63 @@ class ListingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (large && onEdit == null && onDelete == null) {
+    final hasActions = onEdit != null || onDelete != null;
+    if (!hasActions) {
       return _HomeListingCard(listing: listing, onTap: onTap);
     }
+    final imageWidth = 172.0;
+    final imageHeight = 184.0;
+    final detailsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(listing.status.toUpperCase(), style: AppTheme.label),
+        SizedBox(height: 8),
+        Text(
+          listing.shortTitle,
+          style: AppTheme.h2.copyWith(fontSize: large ? 25 : 19),
+        ),
+        SizedBox(height: 8),
+        Text(listing.condition, style: AppTheme.body),
+        SizedBox(height: 18),
+        Text(
+          listing.priceLabel,
+          style: TextStyle(
+            color: AppTheme.red,
+            fontWeight: FontWeight.w900,
+            fontSize: 13,
+          ),
+        ),
+        if (!large) ...[
+          SizedBox(height: 4),
+          Text(
+            '${listing.views} views',
+            style: AppTheme.body.copyWith(fontSize: 11),
+          ),
+        ],
+      ],
+    );
+
     return GestureDetector(
       onTap: onTap,
       child: GlassCard(
         margin: EdgeInsets.only(bottom: 18),
         padding: EdgeInsets.fromLTRB(20, 16, 14, 18),
         radius: 30,
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(listing.status.toUpperCase(), style: AppTheme.label),
-                      SizedBox(height: 8),
-                      Text(
-                        listing.shortTitle,
-                        style: AppTheme.h2.copyWith(fontSize: large ? 25 : 19),
-                      ),
-                      SizedBox(height: 8),
-                      Text(listing.condition, style: AppTheme.body),
-                      SizedBox(height: 18),
-                      Text(
-                        listing.priceLabel,
-                        style: TextStyle(
-                          color: AppTheme.red,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (!large) ...[
-                        SizedBox(height: 4),
-                        Text(
-                          '${listing.views} views',
-                          style: AppTheme.body.copyWith(fontSize: 11),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                SizedBox(width: 8),
-                ProductImage(
+        child: SizedBox(
+          height: 190,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(left: 0, top: 0, width: 176, child: detailsColumn),
+              Positioned(
+                right: 58,
+                top: -8,
+                child: ProductImage(
                   asset: listing.imageAsset,
-                  width: large ? 150 : 96,
-                  height: large ? 150 : 96,
+                  width: imageWidth,
+                  height: imageHeight,
                 ),
-                if (onEdit == null && onDelete == null)
-                  Column(
-                    children: [
-                      CircleGlassButton(
-                        icon: Icons.favorite_rounded,
-                        color: AppTheme.red,
-                        size: 42,
-                      ),
-                      SizedBox(height: 12),
-                      CircleGlassButton(
-                        icon: Icons.shopping_cart_outlined,
-                        color: AppTheme.blue,
-                        size: 42,
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            if (onEdit != null || onDelete != null)
+              ),
               Positioned(
                 right: 0,
                 top: 0,
@@ -2291,7 +2411,8 @@ class ListingCard extends StatelessWidget {
                   ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2306,145 +2427,236 @@ class ProductDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final item = listing ?? store.listings.first;
+    final fallbackItem = seedListings.firstWhere(
+      (item) => item.id == 'ipod-classic',
+    );
+    final item =
+        listing ??
+        store.byId('ipod-classic') ??
+        (store.listings.isNotEmpty ? store.listings.first : fallbackItem);
+    final imageWidth = 316.0;
+    final imageHeight = 413.0;
+    final imageTop = 93.0;
     return GlassScaffold(
-      child: Stack(
-        children: [
-          ListView(
-            padding: EdgeInsets.fromLTRB(20, 18, 20, 98),
+      includeSafeArea: false,
+      background: const DetailAeroBackground(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final panelTop = constraints.maxHeight < 940
+              ? constraints.maxHeight - 441
+              : 515.0;
+          return Stack(
+            clipBehavior: Clip.none,
             children: [
-              Row(
-                children: [
-                  CircleGlassButton(
-                    icon: Icons.arrow_back_ios_new_rounded,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  Spacer(),
-                  CircleGlassButton(icon: Icons.ios_share_rounded),
-                  SizedBox(width: 12),
-                  CircleGlassButton(
-                    icon: Icons.favorite_rounded,
-                    color: AppTheme.red,
-                  ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Center(
-                child: ProductImage(
-                  asset: item.imageAsset,
-                  width: 250,
-                  height: 306,
+              Positioned(
+                left: 24,
+                top: 76,
+                child: CircleGlassButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  size: 44,
+                  onTap: () => Navigator.pop(context),
                 ),
               ),
-              SizedBox(height: 8),
-              Center(child: _Dots()),
-              SizedBox(height: 14),
-              GlassCard(
-                padding: EdgeInsets.fromLTRB(22, 18, 22, 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text('FEATURED', style: AppTheme.label),
-                        Spacer(),
-                        Text(
-                          item.priceLabel,
-                          style: AppTheme.label.copyWith(
-                            color: AppTheme.red,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    RichText(
-                      text: TextSpan(
-                        style: AppTheme.h1.copyWith(fontSize: 25, height: 1.06),
-                        children: [
-                          TextSpan(text: '${item.title}\n'),
-                          TextSpan(
-                            text: '${item.subtitle}.',
-                            style: TextStyle(color: AppTheme.red),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      item.description,
-                      style: AppTheme.body.copyWith(fontSize: 12, height: 1.32),
-                    ),
-                    SizedBox(height: 14),
-                    Row(
-                      children: [
-                        _SpecChip(
-                          Icons.sd_storage_rounded,
-                          item.storage,
-                          'Storage',
-                        ),
-                        _SpecChip(
-                          Icons.battery_5_bar_rounded,
-                          item.battery,
-                          'Battery Life',
-                        ),
-                        _SpecChip(Icons.music_note_rounded, '10K+', 'Songs'),
-                        _SpecChip(
-                          Icons.cable_rounded,
-                          item.connector,
-                          'Connector',
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    Divider(color: AppTheme.line),
-                    SizedBox(height: 8),
-                    Text('Seller', style: AppTheme.h2.copyWith(fontSize: 15)),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        LogoMark(size: 42),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.seller,
-                                style: AppTheme.h2.copyWith(fontSize: 14),
-                              ),
-                              Text(
-                                '${item.rating} star (${item.reviews})',
-                                style: AppTheme.label,
-                              ),
-                              Text(
-                                'Active today',
-                                style: AppTheme.body.copyWith(fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ),
-                        CircleGlassButton(
-                          icon: Icons.more_horiz_rounded,
-                          size: 42,
-                          onTap: () => Navigator.pushNamed(context, '/seller'),
-                        ),
-                      ],
-                    ),
-                  ],
+              Positioned(
+                right: 81,
+                top: 77,
+                child: CircleGlassButton(
+                  icon: Icons.ios_share_rounded,
+                  size: 44,
+                ),
+              ),
+              Positioned(
+                right: 20,
+                top: 76,
+                child: CircleGlassButton(
+                  icon: Icons.favorite_rounded,
+                  color: AppTheme.red,
+                  size: 44,
+                ),
+              ),
+              Positioned(
+                left: (width - imageWidth) / 2,
+                top: imageTop,
+                child: ProductImage(
+                  asset: item.imageAsset,
+                  width: imageWidth,
+                  height: imageHeight,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 465,
+                child: Center(child: _Dots()),
+              ),
+              Positioned(
+                left: 20,
+                right: 20,
+                top: panelTop,
+                child: _ProductDetailPanel(item: item),
+              ),
+              Positioned(
+                left: 32,
+                right: 32,
+                bottom: 10,
+                child: LiquidButton(
+                  label: 'Contact Seller',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  height: 60,
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/chat', arguments: item),
                 ),
               ),
             ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProductDetailPanel extends StatelessWidget {
+  const _ProductDetailPanel({required this.item});
+
+  final Listing item;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      height: 390,
+      padding: EdgeInsets.zero,
+      radius: 30,
+      opacity: 0.66,
+      blur: 12,
+      borderOpacity: 0.72,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 24,
+            top: 17,
+            child: Text('FEATURED', style: AppTheme.label),
           ),
           Positioned(
-            left: 22,
-            right: 22,
-            bottom: 18,
-            child: LiquidButton(
-              label: 'Contact Seller',
-              icon: Icons.chat_bubble_outline_rounded,
-              onPressed: () =>
-                  Navigator.pushNamed(context, '/chat', arguments: item),
+            right: 24,
+            top: 17,
+            child: Text(
+              item.priceLabel,
+              style: AppTheme.label.copyWith(color: AppTheme.red, fontSize: 14),
+            ),
+          ),
+          Positioned(
+            left: 24,
+            top: 44,
+            width: 258,
+            child: RichText(
+              text: TextSpan(
+                style: AppTheme.h1.copyWith(fontSize: 25, height: 1.06),
+                children: [
+                  TextSpan(text: '${item.title}\n'),
+                  TextSpan(
+                    text: item.subtitle,
+                    style: TextStyle(color: AppTheme.red),
+                  ),
+                  _accentSquare(size: 8),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 24,
+            top: 54,
+            child: CircleGlassButton(
+              icon: Icons.shopping_cart_outlined,
+              color: AppTheme.blue,
+              size: 46,
+            ),
+          ),
+          Positioned(
+            left: 24,
+            top: 126,
+            width: 310,
+            child: Text(
+              item.description,
+              style: AppTheme.body.copyWith(fontSize: 12, height: 1.5),
+            ),
+          ),
+          Positioned(
+            left: 24,
+            right: 24,
+            top: 196,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SpecChip(
+                    Icons.sd_storage_rounded,
+                    item.storage,
+                    'Storage',
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: _SpecChip(
+                    Icons.battery_full_rounded,
+                    item.battery,
+                    'Battery Life',
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: _SpecChip(Icons.music_note_rounded, '10K+', 'Songs'),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: _SpecChip(
+                    Icons.settings_input_component_rounded,
+                    item.connector,
+                    'Connector',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 24,
+            right: 24,
+            top: 266,
+            child: Divider(height: 1, color: AppTheme.line),
+          ),
+          Positioned(
+            left: 24,
+            top: 284,
+            child: Text('Seller', style: AppTheme.h2.copyWith(fontSize: 15)),
+          ),
+          Positioned(left: 24, top: 312, child: LogoMark(size: 43)),
+          Positioned(
+            left: 87,
+            top: 313,
+            child: Text(item.seller, style: AppTheme.h2.copyWith(fontSize: 14)),
+          ),
+          Positioned(
+            left: 87,
+            top: 333,
+            child: Text(
+              '${item.rating} ★  (${item.reviews})',
+              style: AppTheme.label.copyWith(fontSize: 13),
+            ),
+          ),
+          Positioned(
+            left: 87,
+            top: 352,
+            child: Text(
+              'Active today',
+              style: AppTheme.body.copyWith(fontSize: 11, height: 1.1),
+            ),
+          ),
+          Positioned(
+            right: 24,
+            top: 318,
+            child: CircleGlassButton(
+              icon: Icons.more_horiz_rounded,
+              size: 42,
+              onTap: () => Navigator.pushNamed(context, '/seller'),
             ),
           ),
         ],
@@ -2484,26 +2696,46 @@ class _SpecChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return SizedBox(
+      height: 48,
       child: GlassCard(
-        margin: EdgeInsets.only(right: 8),
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 5),
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 6),
         radius: 16,
-        opacity: 0.48,
-        child: Column(
+        opacity: 0.5,
+        blur: 12,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 17, color: AppTheme.ink),
-            SizedBox(height: 3),
-            Text(
-              value,
-              maxLines: 1,
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-            ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.body.copyWith(fontSize: 9),
+            SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: AppTheme.body.copyWith(fontSize: 8, height: 1.1),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -2593,20 +2825,40 @@ class CategoriesScreen extends StatelessWidget {
                 arguments: category.name,
               ),
               child: GlassCard(
-                padding: EdgeInsets.all(14),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                padding: EdgeInsets.all(10),
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    ProductImage(asset: category.asset, width: 82, height: 70),
-                    SizedBox(height: 10),
-                    Text(
-                      category.name,
-                      style: AppTheme.label.copyWith(color: AppTheme.red),
+                    Positioned(
+                      top: -4,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: ProductImage(
+                          asset: category.asset,
+                          width: 152,
+                          height: 122,
+                        ),
+                      ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      category.count,
-                      style: AppTheme.body.copyWith(fontSize: 11),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            category.name,
+                            style: AppTheme.label.copyWith(color: AppTheme.red),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            category.count,
+                            style: AppTheme.body.copyWith(fontSize: 11),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -2838,28 +3090,6 @@ class AccountProfileScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 10),
-            GlassCard(
-              height: 44,
-              radius: 24,
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              opacity: 0.58,
-              child: InkWell(
-                onTap: () => Navigator.pushNamed(context, '/create-listing'),
-                borderRadius: BorderRadius.circular(24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_rounded, color: AppTheme.red, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Create New Listing',
-                      style: AppTheme.label.copyWith(color: AppTheme.red),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             SizedBox(height: 14),
             Text('Recent Activity', style: AppTheme.h2.copyWith(fontSize: 16)),
             SizedBox(height: 12),
@@ -3043,37 +3273,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: ListView(
         padding: EdgeInsets.fromLTRB(22, 18, 22, 32),
         children: [
-          _TopBar(title: 'Settings'),
+          _TopBar(
+            title: 'Settings',
+            trailing: Icons.info_outline_rounded,
+            onTrailingTap: () => Navigator.pushNamed(context, '/about'),
+          ),
           SizedBox(height: 22),
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/about'),
-            child: GlassCard(
-              padding: EdgeInsets.all(18),
-              child: Row(
-                children: [
-                  LogoMark(size: 58),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Retro Tech',
-                          style: AppTheme.h2.copyWith(fontSize: 16),
-                        ),
-                        Text(
-                          '@retrotech',
-                          style: AppTheme.body.copyWith(fontSize: 12),
-                        ),
-                        Text(
-                          'Manage your marketplace preferences',
-                          style: AppTheme.body.copyWith(fontSize: 11),
-                        ),
-                      ],
-                    ),
+          GlassCard(
+            padding: EdgeInsets.all(18),
+            child: Row(
+              children: [
+                LogoMark(size: 58),
+                SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Retro Tech',
+                        style: AppTheme.h2.copyWith(fontSize: 16),
+                      ),
+                      Text(
+                        '@retrotech',
+                        style: AppTheme.body.copyWith(fontSize: 12),
+                      ),
+                      Text(
+                        'Manage your marketplace preferences',
+                        style: AppTheme.body.copyWith(fontSize: 11),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: 18),
@@ -3109,7 +3340,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               _SettingsRow(
                 Icons.shield_outlined,
-                'Security',
+                'Help Center',
                 onTap: () => Navigator.pushNamed(context, '/help'),
               ),
             ],
@@ -4681,184 +4912,517 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassScaffold(
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(22, 18, 22, 30),
-        children: [
-          Row(
-            children: [
-              CircleGlassButton(
-                icon: Icons.arrow_back_ios_new_rounded,
-                onTap: () => Navigator.pop(context),
-              ),
-              Spacer(),
-              CircleGlassButton(icon: Icons.ios_share_rounded),
-            ],
-          ),
-          SizedBox(height: 28),
-          Text('ABOUT US', style: AppTheme.label),
-          SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: AppTheme.h1,
+      includeSafeArea: false,
+      background: const _AboutBackground(),
+      child: SingleChildScrollView(
+        physics: BouncingScrollPhysics(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final scale = constraints.maxWidth < _aboutCanvasWidth
+                ? constraints.maxWidth / _aboutCanvasWidth
+                : 1.0;
+            return SizedBox(
+              height: _aboutCanvasHeight * scale,
+              child: Transform.scale(
+                scale: scale,
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: _aboutCanvasWidth,
+                  height: _aboutCanvasHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      TextSpan(text: 'More than\na '),
-                      TextSpan(
-                        text: 'Marketplace.',
-                        style: TextStyle(color: AppTheme.red),
+                      Positioned(
+                        left: 24,
+                        top: 76,
+                        child: _AboutIconButton(
+                          icon: Icons.arrow_back_ios_new_rounded,
+                          onTap: () => popOrMain(context),
+                        ),
                       ),
+                      Positioned(
+                        left: 384,
+                        top: 76,
+                        child: _AboutIconButton(icon: Icons.ios_share_rounded),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 145,
+                        width: 120,
+                        child: Text('ABOUT US', style: _AboutText.eyebrow),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 174,
+                        width: 200,
+                        child: Text('More than', style: _AboutText.hero),
+                      ),
+                      Positioned(
+                        left: 230,
+                        top: 112,
+                        width: 185,
+                        height: 150,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned(
+                              left: -47.75,
+                              top: -5,
+                              width: 262.799,
+                              height: 206.339,
+                              child: Transform.rotate(
+                                angle: 0.06981317007977318,
+                                child: Image.asset(
+                                  Assets.glassButterfly,
+                                  fit: BoxFit.fill,
+                                  filterQuality: FilterQuality.high,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 210,
+                        width: 250,
+                        child: RichText(
+                          text: TextSpan(
+                            style: _AboutText.hero,
+                            children: [
+                              TextSpan(text: 'a '),
+                              TextSpan(
+                                text: 'Marketplace',
+                                style: TextStyle(color: _aboutRed),
+                              ),
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.baseline,
+                                baseline: TextBaseline.alphabetic,
+                                child: Padding(
+                                  padding: EdgeInsets.only(left: 4, bottom: 2),
+                                  child: SizedBox(
+                                    width: 8,
+                                    height: 8,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: _aboutRed,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 274,
+                        width: 260,
+                        child: Text(
+                          'A community built on\ntrust, passion, and nostalgia.',
+                          style: _AboutText.subcopy,
+                        ),
+                      ),
+                      Positioned(
+                        left: 27,
+                        top: 352,
+                        child: _SmallDash(_aboutRed),
+                      ),
+                      Positioned(
+                        left: 57,
+                        top: 352,
+                        child: _SmallDash(_aboutBlue),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 405,
+                        width: 330,
+                        child: Text.rich(
+                          TextSpan(
+                            style: _AboutText.body,
+                            children: [
+                              TextSpan(
+                                text: 'RetroTech',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              TextSpan(
+                                text:
+                                    ' is the go-to marketplace\nfor collectors and enthusiasts of ',
+                              ),
+                              TextSpan(
+                                text: 'Y2K',
+                                style: TextStyle(
+                                  color: _aboutRed,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              TextSpan(text: '\nelectronics. From '),
+                              TextSpan(
+                                text: 'classic',
+                                style: TextStyle(
+                                  color: _aboutBlue,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              TextSpan(
+                                text:
+                                    ' devices\nto rare finds, we bring the best\nof the past to your future.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 28,
+                        top: 558,
+                        child: _AboutIconButton(
+                          icon: Icons.arrow_forward_rounded,
+                          color: _aboutRed,
+                          size: 42,
+                          iconSize: 22,
+                        ),
+                      ),
+                      Positioned(
+                        left: 96,
+                        top: 571,
+                        width: 150,
+                        child: Text(
+                          'Learn more about our',
+                          style: _AboutText.ctaCopy,
+                        ),
+                      ),
+                      Positioned(
+                        left: 223,
+                        top: 571,
+                        width: 70,
+                        child: Text('mission', style: _AboutText.ctaLink),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 632,
+                        width: 170,
+                        child: Text(
+                          'WHAT WE STAND FOR',
+                          style: _AboutText.section,
+                        ),
+                      ),
+                      Positioned(
+                        left: 24,
+                        top: 662,
+                        child: _ValueCard(
+                          Icons.favorite_rounded,
+                          'Trust & Safety',
+                          'Secure payments\nand verified\nsellers.',
+                          _aboutRed,
+                          iconTop: 4,
+                          titleLeft: 20,
+                          titleTop: 43,
+                          copyTop: 63,
+                          iconSize: 18,
+                        ),
+                      ),
+                      Positioned(
+                        left: 156,
+                        top: 662,
+                        child: _ValueCard(
+                          Icons.groups_rounded,
+                          'Community First',
+                          'Connect with\ncollectors who\nshare your passion.',
+                          _aboutBlue,
+                          iconTop: 5,
+                          titleLeft: 11,
+                          titleTop: 44,
+                          copyTop: 65,
+                          iconSize: 16,
+                        ),
+                      ),
+                      Positioned(
+                        left: 288,
+                        top: 662,
+                        child: _ValueCard(
+                          Icons.eco_rounded,
+                          'Sustainability',
+                          'Give vintage\ntech a second\nlife together.',
+                          _aboutGreen,
+                          iconTop: 6,
+                          titleLeft: 23,
+                          titleTop: 47,
+                          copyTop: 65,
+                          iconSize: 16,
+                        ),
+                      ),
+                      Positioned(
+                        left: 26,
+                        top: 800,
+                        width: 150,
+                        child: Text(
+                          'BY THE NUMBERS',
+                          style: _AboutText.section,
+                        ),
+                      ),
+                      Positioned(
+                        left: 27,
+                        top: 822,
+                        child: _Number('10K+', 'Happy Buyers', _aboutRed),
+                      ),
+                      Positioned(
+                        left: 126,
+                        top: 822,
+                        child: _Number('5K+', 'Verified Sellers', _aboutBlue),
+                      ),
+                      Positioned(
+                        left: 225,
+                        top: 822,
+                        child: _Number('50K+', 'Products Sold', _aboutGreen),
+                      ),
+                      Positioned(
+                        left: 324,
+                        top: 822,
+                        child: _Number('100+', 'Countries', _aboutViolet),
+                      ),
+                      Positioned(left: 24, top: 889, child: _AboutNewsCard()),
                     ],
                   ),
                 ),
               ),
-              SizedBox(
-                width: 154,
-                height: 126,
-                child: Image.asset(Assets.glassButterfly, fit: BoxFit.contain),
-              ),
-            ],
-          ),
-          SizedBox(height: 26),
-          Text(
-            'A community built on\ntrust, passion, and nostalgia.',
-            style: AppTheme.body.copyWith(fontSize: 18),
-          ),
-          SizedBox(height: 28),
-          Row(
-            children: [
-              _SmallDash(AppTheme.red),
-              SizedBox(width: 10),
-              _SmallDash(AppTheme.blue),
-            ],
-          ),
-          SizedBox(height: 48),
-          RichText(
-            text: TextSpan(
-              style: AppTheme.body.copyWith(color: AppTheme.ink, fontSize: 18),
-              children: [
-                TextSpan(
-                  text: 'RetroTech ',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                TextSpan(
-                  text:
-                      'is the go-to marketplace for collectors and enthusiasts of ',
-                ),
-                TextSpan(
-                  text: 'Y2K ',
-                  style: TextStyle(
-                    color: AppTheme.red,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                TextSpan(text: 'electronics. From '),
-                TextSpan(
-                  text: 'classic ',
-                  style: TextStyle(
-                    color: AppTheme.blue,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                TextSpan(
-                  text:
-                      'devices to rare finds, we bring the best of the past to your future.',
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 34),
-          Row(
-            children: [
-              CircleGlassButton(
-                icon: Icons.arrow_forward_rounded,
-                color: AppTheme.red,
-              ),
-              SizedBox(width: 22),
-              Text('Learn more about our ', style: AppTheme.body),
-              Text('mission', style: AppTheme.label),
-            ],
-          ),
-          SizedBox(height: 34),
-          Text('WHAT WE STAND FOR', style: AppTheme.label),
-          SizedBox(height: 14),
-          Row(
-            children: [
-              _ValueCard(
-                Icons.favorite_rounded,
-                'Trust & Safety',
-                'Secure payments and verified sellers.',
-                AppTheme.red,
-              ),
-              _ValueCard(
-                Icons.groups_rounded,
-                'Community First',
-                'Connect with collectors who share your passion.',
-                AppTheme.blue,
-              ),
-              _ValueCard(
-                Icons.eco_rounded,
-                'Sustainability',
-                'Give vintage tech a second life together.',
-                AppTheme.green,
-              ),
-            ],
-          ),
-          SizedBox(height: 26),
-          Text('BY THE NUMBERS', style: AppTheme.label),
-          SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _Number('10K+', 'Happy Buyers', AppTheme.red),
-              _Number('5K+', 'Verified Sellers', AppTheme.blue),
-              _Number('50K+', 'Products Sold', AppTheme.green),
-              _Number('100+', 'Countries', AppTheme.violet),
-            ],
-          ),
-          SizedBox(height: 18),
-          GlassCard(
-            padding: EdgeInsets.all(10),
-            child: Row(
-              children: [
-                Image.asset(
-                  Assets.latestNewsThumbnail,
-                  width: 93,
-                  height: 62,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => ProductImage(
-                    asset: Assets.gameboy,
-                    width: 72,
-                    height: 58,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('LATEST NEWS', style: AppTheme.label),
-                      Text(
-                        'New Arrivals: Transparent Tech',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      Text(
-                        'Explore rare transparent gadgets',
-                        style: AppTheme.body.copyWith(fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                CircleGlassButton(
-                  icon: Icons.arrow_forward_rounded,
-                  color: AppTheme.red,
-                ),
-              ],
-            ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+const _aboutCanvasWidth = 440.0;
+const _aboutCanvasHeight = 956.0;
+const _aboutInk = Color(0xFF080A0F);
+const _aboutMuted = Color(0xFF5C637A);
+const _aboutEyebrow = Color(0xFF4791DB);
+const _aboutBlue = Color(0xFF0573FF);
+const _aboutRed = Color(0xFFFF080F);
+const _aboutGreen = Color(0xFF0DB238);
+const _aboutViolet = Color(0xFF7338F2);
+
+class _AboutText {
+  static const baseFont = 'Inter';
+
+  static const eyebrow = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 11,
+    height: 14 / 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    color: _aboutEyebrow,
+  );
+
+  static const hero = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 28,
+    height: 34 / 28,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    color: _aboutInk,
+  );
+
+  static const subcopy = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 17,
+    height: 24 / 17,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    color: _aboutMuted,
+  );
+
+  static const body = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 17,
+    height: 25 / 17,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    color: _aboutInk,
+  );
+
+  static const ctaCopy = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 12,
+    height: 15 / 12,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    color: _aboutMuted,
+  );
+
+  static const ctaLink = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 12,
+    height: 15 / 12,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    color: _aboutBlue,
+  );
+
+  static const section = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 10,
+    height: 13 / 10,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    color: _aboutEyebrow,
+  );
+
+  static const valueTitle = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 11,
+    height: 14 / 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+  );
+
+  static const valueCopy = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 9,
+    height: 12 / 9,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    color: _aboutMuted,
+  );
+
+  static const metric = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 22,
+    height: 26 / 22,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+  );
+
+  static const metricLabel = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 9,
+    height: 11 / 9,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    color: _aboutMuted,
+  );
+
+  static const newsEyebrow = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 9,
+    height: 11 / 9,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    color: _aboutBlue,
+  );
+
+  static const newsTitle = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 11,
+    height: 13 / 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    color: _aboutInk,
+  );
+
+  static const newsCopy = TextStyle(
+    fontFamily: baseFont,
+    fontSize: 9,
+    height: 11 / 9,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    color: _aboutMuted,
+  );
+}
+
+class _AboutBackground extends StatelessWidget {
+  const _AboutBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Image.asset(
+        Assets.background,
+        fit: BoxFit.cover,
+        alignment: Alignment.topLeft,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+}
+
+class _AboutGlassSurface extends StatelessWidget {
+  const _AboutGlassSurface({
+    required this.child,
+    required this.width,
+    required this.height,
+    required this.radius,
+    this.opacity = 0.66,
+  });
+
+  final Widget child;
+  final double width;
+  final double height;
+  final double radius;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF1A2942).withValues(alpha: 0.12),
+            offset: Offset(0, 10),
+            blurRadius: 12,
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 11, sigmaY: 11),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: opacity),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.72),
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(radius),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AboutIconButton extends StatelessWidget {
+  const _AboutIconButton({
+    required this.icon,
+    this.color = _aboutInk,
+    this.onTap,
+    this.size = 44,
+    this.iconSize,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  final double size;
+  final double? iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: _AboutGlassSurface(
+        width: size,
+        height: size,
+        radius: size / 2,
+        child: Icon(icon, color: color, size: iconSize ?? size * 0.54),
       ),
     );
   }
@@ -4883,37 +5447,68 @@ class _SmallDash extends StatelessWidget {
 }
 
 class _ValueCard extends StatelessWidget {
-  const _ValueCard(this.icon, this.title, this.text, this.color);
+  const _ValueCard(
+    this.icon,
+    this.title,
+    this.text,
+    this.color, {
+    required this.iconTop,
+    required this.titleLeft,
+    required this.titleTop,
+    required this.copyTop,
+    required this.iconSize,
+  });
 
   final IconData icon;
   final String title;
   final String text;
   final Color color;
+  final double iconTop;
+  final double titleLeft;
+  final double titleTop;
+  final double copyTop;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GlassCard(
-        margin: EdgeInsets.only(right: 8),
-        padding: EdgeInsets.all(10),
-        radius: 18,
-        child: Column(
-          children: [
-            Icon(icon, color: color),
-            SizedBox(height: 8),
-            Text(
+    return _AboutGlassSurface(
+      width: 116,
+      height: 112,
+      radius: 18,
+      opacity: 0.52,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 40,
+            top: iconTop,
+            child: _AboutGlassSurface(
+              width: 34,
+              height: 34,
+              radius: 17,
+              child: Icon(icon, color: color, size: iconSize),
+            ),
+          ),
+          Positioned(
+            left: titleLeft,
+            top: titleTop,
+            width: 92,
+            child: Text(
               title,
-              textAlign: TextAlign.center,
-              style: AppTheme.label.copyWith(color: color),
+              style: _AboutText.valueTitle.copyWith(color: color),
+              textAlign: TextAlign.left,
             ),
-            SizedBox(height: 6),
-            Text(
+          ),
+          Positioned(
+            left: 12,
+            top: copyTop,
+            width: 92,
+            child: Text(
               text,
+              style: _AboutText.valueCopy,
               textAlign: TextAlign.center,
-              style: AppTheme.body.copyWith(fontSize: 10),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -4928,11 +5523,95 @@ class _Number extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: AppTheme.h2.copyWith(color: color, fontSize: 22)),
-        Text(label, style: AppTheme.body.copyWith(fontSize: 9)),
-      ],
+    return SizedBox(
+      width: 90,
+      height: 43,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            width: 80,
+            child: Text(value, style: _AboutText.metric.copyWith(color: color)),
+          ),
+          Positioned(
+            left: 0,
+            top: 28,
+            width: 90,
+            child: Text(label, style: _AboutText.metricLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutNewsCard extends StatelessWidget {
+  const _AboutNewsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _AboutGlassSurface(
+      width: 392,
+      height: 64,
+      radius: 30,
+      opacity: 0.58,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            width: 93,
+            height: 62,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(31),
+              child: Image.asset(
+                Assets.latestNewsThumbnail,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, error, stackTrace) =>
+                    ProductImage(asset: Assets.gameboy, width: 93, height: 62),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 111,
+            top: 7,
+            width: 120,
+            child: Text('LATEST NEWS', style: _AboutText.newsEyebrow),
+          ),
+          Positioned(
+            left: 111,
+            top: 23,
+            width: 205,
+            child: Text(
+              'New Arrivals: Transparent Tech',
+              style: _AboutText.newsTitle,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+            ),
+          ),
+          Positioned(
+            left: 111,
+            top: 39,
+            width: 205,
+            child: Text(
+              'Explore rare transparent gadgets',
+              style: _AboutText.newsCopy,
+            ),
+          ),
+          Positioned(
+            left: 341,
+            top: 12,
+            child: _AboutIconButton(
+              icon: Icons.arrow_forward_rounded,
+              color: _aboutRed,
+              size: 38,
+              iconSize: 20,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -4999,10 +5678,11 @@ class _CommunityPostCard extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, this.trailing});
+  const _TopBar({required this.title, this.trailing, this.onTrailingTap});
 
   final String title;
   final IconData? trailing;
+  final VoidCallback? onTrailingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -5019,7 +5699,10 @@ class _TopBar extends StatelessWidget {
             style: AppTheme.h2.copyWith(fontSize: 18),
           ),
         ),
-        CircleGlassButton(icon: trailing ?? Icons.more_horiz_rounded),
+        CircleGlassButton(
+          icon: trailing ?? Icons.more_horiz_rounded,
+          onTap: onTrailingTap,
+        ),
       ],
     );
   }
