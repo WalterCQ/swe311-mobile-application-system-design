@@ -2,6 +2,7 @@
 
 import 'dart:ui';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -131,14 +132,36 @@ class _RetroTechAppState extends State<RetroTechApp> {
   Route<dynamic> _pageRoute(RouteSettings settings, Widget page) {
     return PageRouteBuilder(
       settings: settings,
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final slide = Tween(begin: Offset(0, 0.035), end: Offset.zero).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
         );
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(position: slide, child: child),
+        final slide = Tween(
+          begin: Offset(0.045, 0),
+          end: Offset.zero,
+        ).animate(curved);
+        final scale = Tween(begin: 0.985, end: 1.0).animate(curved);
+        final outgoingSlide = Tween(begin: Offset.zero, end: Offset(-0.025, 0))
+            .animate(
+              CurvedAnimation(
+                parent: secondaryAnimation,
+                curve: Curves.easeOutCubic,
+              ),
+            );
+        return SlideTransition(
+          position: outgoingSlide,
+          child: FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: slide,
+              child: ScaleTransition(scale: scale, child: child),
+            ),
+          ),
         );
       },
     );
@@ -647,6 +670,57 @@ void popOrMain(BuildContext context) {
   navigator.pushReplacementNamed('/main');
 }
 
+String _listingHeroTag(Listing listing) => 'listing-image-${listing.id}';
+
+String _categoryHeroTag(String category) => 'category-image-$category';
+
+String _categoryAssetFor(String category) {
+  return switch (category.toLowerCase()) {
+    'phones' => Assets.v60,
+    'audio' => Assets.discmanHome,
+    'gaming' => Assets.gameboy,
+    'cameras' => Assets.camera,
+    'computing' => Assets.imac,
+    'wearables' => Assets.watch,
+    _ => Assets.discmanHome,
+  };
+}
+
+class _OpenMotionContainer extends StatelessWidget {
+  const _OpenMotionContainer({
+    required this.openPage,
+    required this.closedBuilder,
+    required this.radius,
+    this.routeSettings,
+  });
+
+  final Widget openPage;
+  final Widget Function(VoidCallback openContainer) closedBuilder;
+  final double radius;
+  final RouteSettings? routeSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return OpenContainer<void>(
+      tappable: false,
+      transitionDuration: const Duration(milliseconds: 520),
+      transitionType: ContainerTransitionType.fadeThrough,
+      closedColor: Colors.transparent,
+      middleColor: Colors.white.withValues(alpha: 0.52),
+      openColor: AppTheme.bg,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      openShape: const RoundedRectangleBorder(),
+      routeSettings: routeSettings,
+      closedBuilder: (context, openContainer) => closedBuilder(openContainer),
+      openBuilder: (context, closeContainer) => openPage,
+    );
+  }
+}
+
 class GlassScaffold extends StatelessWidget {
   const GlassScaffold({
     super.key,
@@ -734,9 +808,9 @@ class AeroBackground extends StatelessWidget {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Colors.white.withValues(alpha: 0.82),
-                  Colors.white.withValues(alpha: 0.34),
-                  Colors.white.withValues(alpha: 0.06),
+                  Colors.white.withValues(alpha: 0.24),
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.white.withValues(alpha: 0.02),
                 ],
                 stops: const [0, 0.42, 1],
               ),
@@ -753,8 +827,8 @@ class AeroBackground extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.white.withValues(alpha: 0),
-                      Colors.white.withValues(alpha: 0.52),
-                      Colors.white.withValues(alpha: 0.14),
+                      Colors.white.withValues(alpha: 0.12),
+                      Colors.white.withValues(alpha: 0.02),
                     ],
                   ),
                 ),
@@ -857,6 +931,9 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final glassBlur = blur < 72 ? 72.0 : blur;
+    final glassSheen = opacity.clamp(0.08, 0.22).toDouble();
+    final glassBorderOpacity = borderOpacity.clamp(0.86, 0.96).toDouble();
     return Container(
       width: width,
       height: height,
@@ -865,40 +942,210 @@ class GlassCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.62),
+            color: Colors.white.withValues(alpha: glassSheen * 1.55),
             offset: Offset(-2, -2),
-            blurRadius: 8,
+            blurRadius: 12,
           ),
           BoxShadow(
-            color: Color(0xFF1A2942).withValues(alpha: 0.12),
-            offset: Offset(0, 12),
-            blurRadius: 18,
+            color: Color(0xFF1A2942).withValues(alpha: 0.1),
+            offset: Offset(0, 18),
+            blurRadius: 28,
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          filter: ImageFilter.blur(sigmaX: glassBlur, sigmaY: glassBlur),
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(radius),
-              color: Colors.white.withValues(alpha: opacity),
+              color: Colors.transparent,
               border: Border.all(
-                color: Colors.white.withValues(alpha: borderOpacity),
-                width: 1,
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: opacity + 0.12),
-                  Colors.white.withValues(alpha: opacity * 0.58),
-                ],
+                color: Colors.white.withValues(alpha: glassBorderOpacity),
+                width: 1.1,
               ),
             ),
             child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResponsiveMetrics {
+  const _ResponsiveMetrics({
+    required this.width,
+    required this.height,
+    required this.pagePadding,
+    required this.topGap,
+    required this.gutter,
+    required this.bottomNavHeight,
+    required this.cardRadius,
+  });
+
+  final double width;
+  final double height;
+  final double pagePadding;
+  final double topGap;
+  final double gutter;
+  final double bottomNavHeight;
+  final double cardRadius;
+
+  factory _ResponsiveMetrics.of(BuildContext context) {
+    final mediaSize = MediaQuery.sizeOf(context);
+    final shellWidth = mediaSize.width > 480 ? 440.0 : mediaSize.width;
+    final compactWidth = shellWidth < 360;
+    final compactHeight = mediaSize.height < 740;
+    final compact = compactWidth || compactHeight;
+    return _ResponsiveMetrics(
+      width: shellWidth,
+      height: mediaSize.height,
+      pagePadding: compactWidth ? 16 : 22,
+      topGap: compactHeight ? 12 : 18,
+      gutter: compactWidth ? 12 : 16,
+      bottomNavHeight: compact ? 74 : 82,
+      cardRadius: compact ? 24 : 30,
+    );
+  }
+
+  bool get compact => width < 360 || height < 740;
+
+  EdgeInsets get pageInsets =>
+      EdgeInsets.fromLTRB(pagePadding, topGap, pagePadding, 28);
+
+  EdgeInsets get pageInsetsWithNav => EdgeInsets.fromLTRB(
+    pagePadding,
+    topGap,
+    pagePadding,
+    bottomNavHeight + 40,
+  );
+
+  double get homeCardHeight =>
+      (height * (compact ? 0.255 : 0.25)).clamp(176.0, 218.0).toDouble();
+
+  double get listingActionCardHeight =>
+      (height * 0.225).clamp(170.0, 198.0).toDouble();
+
+  double get detailImageHeight =>
+      (height * (compact ? 0.34 : 0.39)).clamp(230.0, 350.0).toDouble();
+
+  int get categoryColumns => width >= 410 ? 3 : 2;
+
+  double scaled(double value, {double min = 0, double? max}) {
+    final scaledValue = value * (width / 390);
+    return scaledValue.clamp(min, max ?? value * 1.12).toDouble();
+  }
+}
+
+class _LiquidPressable extends StatefulWidget {
+  const _LiquidPressable({
+    required this.child,
+    this.onTap,
+    this.borderRadius = const BorderRadius.all(Radius.circular(24)),
+    this.glowColor = AppTheme.blue,
+    this.active = false,
+    this.pressedScale = 0.975,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final BorderRadiusGeometry borderRadius;
+  final Color glowColor;
+  final bool active;
+  final double pressedScale;
+
+  @override
+  State<_LiquidPressable> createState() => _LiquidPressableState();
+}
+
+class _LiquidPressableState extends State<_LiquidPressable> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value || widget.onTap == null) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onTap != null;
+    final glowing = enabled && (_pressed || widget.active);
+    final overlayOpacity = _pressed ? 0.9 : (widget.active ? 0.55 : 0.0);
+    final borderRadius = widget.borderRadius;
+
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onTapDown: enabled ? (_) => _setPressed(true) : null,
+        onTapUp: enabled ? (_) => _setPressed(false) : null,
+        onTapCancel: enabled ? () => _setPressed(false) : null,
+        child: AnimatedScale(
+          scale: _pressed ? widget.pressedScale : 1,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOutCubic,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              borderRadius: borderRadius,
+              boxShadow: glowing
+                  ? [
+                      BoxShadow(
+                        color: widget.glowColor.withValues(
+                          alpha: _pressed ? 0.34 : 0.2,
+                        ),
+                        blurRadius: _pressed ? 26 : 18,
+                        spreadRadius: _pressed ? 1.5 : 0,
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withValues(
+                          alpha: _pressed ? 0.46 : 0.22,
+                        ),
+                        offset: const Offset(-2, -2),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                widget.child,
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOutCubic,
+                      opacity: overlayOpacity,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: borderRadius,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            width: 1.3,
+                          ),
+                          gradient: RadialGradient(
+                            center: Alignment.topLeft,
+                            radius: 1.15,
+                            colors: [
+                              Colors.white.withValues(alpha: 0.42),
+                              widget.glowColor.withValues(alpha: 0.16),
+                              Colors.transparent,
+                            ],
+                            stops: const [0, 0.42, 1],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -928,8 +1175,10 @@ class LiquidButton extends StatelessWidget {
     final compact = height < 54;
     final iconSize = height - (compact ? 16 : 14);
 
-    return GestureDetector(
+    return _LiquidPressable(
       onTap: onPressed,
+      borderRadius: BorderRadius.circular(999),
+      glowColor: color,
       child: Container(
         height: height,
         width: double.infinity,
@@ -1041,15 +1290,21 @@ class CircleGlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        width: size,
-        height: size,
-        radius: size / 2,
-        padding: EdgeInsets.zero,
-        opacity: 0.62,
-        child: Icon(icon, color: color, size: size * 0.45),
+    return SizedBox(
+      width: size,
+      height: size,
+      child: _LiquidPressable(
+        onTap: onTap ?? () {},
+        borderRadius: BorderRadius.circular(size / 2),
+        glowColor: color,
+        child: GlassCard(
+          width: size,
+          height: size,
+          radius: size / 2,
+          padding: EdgeInsets.zero,
+          opacity: 0.62,
+          child: Icon(icon, color: color, size: size * 0.45),
+        ),
       ),
     );
   }
@@ -1069,8 +1324,10 @@ class CircleGlassImageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return _LiquidPressable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(size / 2),
+      glowColor: AppTheme.blue,
       child: Image.asset(
         asset,
         width: size,
@@ -1102,40 +1359,88 @@ class SolidCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color.withValues(alpha: 0.92), color],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.3),
-              offset: Offset(0, 10),
-              blurRadius: 22,
+    return SizedBox(
+      width: size,
+      height: size,
+      child: _LiquidPressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(size / 2),
+        glowColor: color,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withValues(alpha: 0.92), color],
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                offset: Offset(0, 10),
+                blurRadius: 22,
+              ),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: size * 0.42),
         ),
-        child: Icon(icon, color: Colors.white, size: size * 0.42),
+      ),
+    );
+  }
+}
+
+class _FavoriteButton extends StatefulWidget {
+  const _FavoriteButton({this.size = 42});
+
+  final double size;
+
+  @override
+  State<_FavoriteButton> createState() => _FavoriteButtonState();
+}
+
+class _FavoriteButtonState extends State<_FavoriteButton> {
+  bool _favorite = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: _LiquidPressable(
+        onTap: () => setState(() => _favorite = !_favorite),
+        borderRadius: BorderRadius.circular(widget.size / 2),
+        glowColor: AppTheme.red,
+        active: _favorite,
+        pressedScale: 0.94,
+        child: GlassCard(
+          width: widget.size,
+          height: widget.size,
+          radius: widget.size / 2,
+          padding: EdgeInsets.zero,
+          opacity: _favorite ? 0.72 : 0.62,
+          child: Icon(
+            _favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            color: AppTheme.red,
+            size: widget.size * 0.45,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _HomeListingCard extends StatelessWidget {
-  const _HomeListingCard({required this.listing, this.onTap});
+  const _HomeListingCard({required this.listing, this.onTap, this.heroTag});
 
   final Listing listing;
   final VoidCallback? onTap;
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     final isMotorola = listing.id == 'motorola-v60';
     final isIpod = listing.id == 'ipod-classic';
     final bodyCopy = isMotorola
@@ -1153,111 +1458,130 @@ class _HomeListingCard extends StatelessWidget {
         : isIpod
         ? 225.0
         : 115.0;
-    final imageTop = isMotorola
-        ? -80.0
-        : isIpod
-        ? -26.0
-        : -16.0;
-    final imageRight = isMotorola
-        ? 68.0
-        : isIpod
-        ? 92.0
-        : 88.0;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 18),
-        child: SizedBox(
-          height: 210,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: GlassCard(
-                  padding: EdgeInsets.zero,
-                  radius: 30,
-                  opacity: 0.61,
-                  borderOpacity: 0.72,
-                  child: const SizedBox.shrink(),
-                ),
+    return Container(
+      margin: EdgeInsets.only(bottom: metrics.gutter + 2),
+      child: _LiquidPressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(metrics.cardRadius),
+        glowColor: AppTheme.red,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final cardHeight = metrics.homeCardHeight;
+            final compact = constraints.maxWidth < 340;
+            final buttonSize = compact ? 32.0 : 36.0;
+            return GlassCard(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 16 : 20,
+                compact ? 14 : 16,
+                compact ? 12 : 14,
+                compact ? 14 : 18,
               ),
-              Positioned(
-                left: 22,
-                top: 14,
-                child: Text(
-                  listing.status,
-                  style: AppTheme.label.copyWith(fontSize: 12),
-                ),
-              ),
-              Positioned(
-                left: 22,
-                top: 37,
-                width: 150,
-                child: RichText(
-                  text: TextSpan(
-                    style: AppTheme.h2.copyWith(fontSize: 24, height: 1.04),
-                    children: [
-                      TextSpan(
-                        text: isMotorola ? 'Motorola\n' : '${listing.title}\n',
-                      ),
-                      TextSpan(text: isIpod ? '4th Gen ' : listing.subtitle),
-                      _accentSquare(size: 9),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 22,
-                top: 100,
-                width: 128,
-                child: Text(
-                  bodyCopy,
-                  style: AppTheme.body.copyWith(fontSize: 13, height: 1.28),
-                ),
-              ),
-              Positioned(
-                left: 22,
-                bottom: 18,
-                child: Text(
-                  listing.priceLabel,
-                  style: TextStyle(
-                    color: AppTheme.red,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Positioned(
-                right: imageRight,
-                top: imageTop,
-                child: ProductImage(
-                  asset: listing.imageAsset,
-                  width: imageWidth,
-                  height: imageHeight,
-                ),
-              ),
-              Positioned(
-                right: 18,
-                top: 16,
-                child: Column(
+              radius: metrics.cardRadius,
+              opacity: 0.22,
+              blur: 42,
+              borderOpacity: 0.9,
+              child: SizedBox(
+                height: cardHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    CircleGlassButton(
-                      icon: Icons.favorite_rounded,
-                      color: AppTheme.red,
-                      size: 36,
+                    Expanded(
+                      flex: compact ? 5 : 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            listing.status,
+                            style: AppTheme.label.copyWith(fontSize: 12),
+                          ),
+                          SizedBox(height: compact ? 7 : 9),
+                          Text.rich(
+                            TextSpan(
+                              style: AppTheme.h2.copyWith(
+                                fontSize: compact ? 20 : 23,
+                                height: 1.05,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: isMotorola
+                                      ? 'Motorola\n'
+                                      : '${listing.title}\n',
+                                ),
+                                TextSpan(
+                                  text: isIpod ? '4th Gen ' : listing.subtitle,
+                                ),
+                                _accentSquare(size: 8),
+                              ],
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: compact ? 10 : 13),
+                          Text(
+                            bodyCopy,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.body.copyWith(
+                              fontSize: compact ? 12 : 13,
+                              height: 1.28,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            listing.priceLabel,
+                            style: TextStyle(
+                              color: AppTheme.red,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    SizedBox(height: 9),
-                    CircleGlassButton(
-                      icon: Icons.shopping_cart_outlined,
-                      color: AppTheme.blue,
-                      size: 36,
+                    SizedBox(width: compact ? 4 : 6),
+                    Expanded(
+                      flex: compact ? 5 : 6,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: Transform.scale(
+                              scale: compact ? 1.12 : 1.16,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: ProductImage(
+                                  asset: listing.imageAsset,
+                                  width: imageWidth,
+                                  height: imageHeight,
+                                  heroTag: heroTag,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: compact ? 4 : 6),
+                          const _Dots(),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: compact ? 4 : 6),
+                    SizedBox(
+                      width: buttonSize,
+                      child: Column(
+                        children: [
+                          _FavoriteButton(size: buttonSize),
+                          SizedBox(height: compact ? 7 : 9),
+                          CircleGlassButton(
+                            icon: Icons.shopping_cart_outlined,
+                            color: AppTheme.blue,
+                            size: buttonSize,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              Positioned(left: 175, bottom: 22, child: _Dots()),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -1337,34 +1661,37 @@ class GlassListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      dense: dense,
-      minVerticalPadding: dense ? 4 : null,
-      leading: Icon(icon, color: iconColor),
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.w800)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (badge != null)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: badgeColor,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                badge!,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        onTap: onTap,
+        dense: dense,
+        minVerticalPadding: dense ? 4 : null,
+        leading: Icon(icon, color: iconColor),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.w800)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badge != null)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(99),
                 ),
-              ),
-            )
-          else if (value != null)
-            Text(value!, style: AppTheme.body.copyWith(fontSize: 12)),
-          Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
-        ],
+                child: Text(
+                  badge!,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              )
+            else if (value != null)
+              Text(value!, style: AppTheme.body.copyWith(fontSize: 12)),
+            Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
+          ],
+        ),
       ),
     );
   }
@@ -1488,22 +1815,51 @@ class ProductImage extends StatelessWidget {
     this.width = 124,
     this.height = 124,
     this.fit = BoxFit.contain,
+    this.heroTag,
   });
 
   final String asset;
   final double width;
   final double height;
   final BoxFit fit;
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
+    final image = Image.asset(
       asset,
       width: width,
       height: height,
       fit: fit,
       errorBuilder: (context, error, stackTrace) =>
           Icon(Icons.devices_rounded, size: width * 0.56),
+    );
+    final tag = heroTag;
+    if (tag == null) return image;
+    return Hero(
+      tag: tag,
+      transitionOnUserGestures: true,
+      createRectTween: (begin, end) =>
+          MaterialRectArcTween(begin: begin, end: end),
+      flightShuttleBuilder:
+          (context, animation, direction, fromHeroContext, toHeroContext) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOutCubic,
+              reverseCurve: Curves.easeInOutCubic,
+            );
+            final child = direction == HeroFlightDirection.push
+                ? toHeroContext.widget
+                : fromHeroContext.widget;
+            return FadeTransition(
+              opacity: curved,
+              child: ScaleTransition(
+                scale: Tween(begin: 0.96, end: 1.0).animate(curved),
+                child: child,
+              ),
+            );
+          },
+      child: image,
     );
   }
 }
@@ -1557,14 +1913,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
+    final horizontalPadding = metrics.compact ? 32.0 : 40.0;
     return GlassScaffold(
       backgroundAsset: Assets.loginBackground,
       backgroundOverlay: false,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(52, 70, 52, 28),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          metrics.compact ? 58 : 64,
+          horizontalPadding,
+          28,
+        ),
         children: [
-          Center(child: LogoMark(size: 100)),
-          SizedBox(height: 70),
+          Center(child: LogoMark(size: metrics.compact ? 110 : 120)),
+          SizedBox(height: metrics.compact ? 56 : 64),
           Center(
             child: RichText(
               text: TextSpan(
@@ -1646,8 +2009,9 @@ class _LoginScreenState extends State<LoginScreen> {
           SizedBox(height: 40),
           Center(child: _SocialLoginCluster()),
           SizedBox(height: 46),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 "Don't have an account? ",
@@ -1670,85 +2034,88 @@ class _SocialLoginCluster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 324,
-      height: 96,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: 0,
-            top: 8,
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: Color(0x61BFC7D6)),
-              child: SizedBox(width: 100, height: 1),
-            ),
-          ),
-          Positioned(
-            left: 224,
-            top: 8,
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: Color(0x61BFC7D6)),
-              child: SizedBox(width: 100, height: 1),
-            ),
-          ),
-          Positioned(
-            left: 114,
-            top: 0,
-            child: SizedBox(
-              width: 96,
-              height: 16,
-              child: Text(
-                'Or continue with',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.muted,
-                  fontSize: 12,
-                  height: 16 / 12,
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 0,
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final clusterWidth = constraints.maxWidth
+            .clamp(256.0, 360.0)
+            .toDouble();
+        final gap = clusterWidth < 300 ? 10.0 : 12.0;
+        final buttonWidth = ((clusterWidth - gap * 2) / 3)
+            .clamp(78.0, 108.0)
+            .toDouble();
+        final buttonHeight = (buttonWidth * 0.62).clamp(54.0, 66.0).toDouble();
+        final iconScale = buttonHeight / 52.0;
+
+        return SizedBox(
+          width: clusterWidth,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: Color(0x61BFC7D6)),
+                      child: SizedBox(height: 1),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 126,
+                    child: Text(
+                      'Or continue with',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.muted,
+                        fontSize: 12,
+                        height: 16 / 12,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: Color(0x61BFC7D6)),
+                      child: SizedBox(height: 1),
+                    ),
+                  ),
+                ],
               ),
-            ),
+              SizedBox(height: 26),
+              Row(
+                children: [
+                  _SocialButton(
+                    semanticLabel: 'Continue with Google',
+                    asset: Assets.googleIcon,
+                    width: buttonWidth,
+                    height: buttonHeight,
+                    iconWidth: 28 * iconScale,
+                    iconHeight: 28 * iconScale,
+                  ),
+                  SizedBox(width: gap),
+                  _SocialButton(
+                    semanticLabel: 'Continue with Apple',
+                    asset: Assets.appleIcon,
+                    width: buttonWidth,
+                    height: buttonHeight,
+                    iconWidth: 29 * iconScale,
+                    iconHeight: 34 * iconScale,
+                  ),
+                  SizedBox(width: gap),
+                  _SocialButton(
+                    semanticLabel: 'Continue with Facebook',
+                    asset: Assets.facebookIcon,
+                    width: buttonWidth,
+                    height: buttonHeight,
+                    iconWidth: 35 * iconScale,
+                    iconHeight: 34 * iconScale,
+                  ),
+                ],
+              ),
+            ],
           ),
-          Positioned(
-            left: 0,
-            top: 44,
-            child: _SocialButton(
-              semanticLabel: 'Continue with Google',
-              asset: Assets.googleIcon,
-              iconLeft: 31,
-              iconTop: 13,
-              iconWidth: 24,
-              iconHeight: 24,
-            ),
-          ),
-          Positioned(
-            left: 114,
-            top: 44,
-            child: _SocialButton(
-              semanticLabel: 'Continue with Apple',
-              asset: Assets.appleIcon,
-              iconLeft: 31,
-              iconTop: 8,
-              iconWidth: 23,
-              iconHeight: 28,
-            ),
-          ),
-          Positioned(
-            left: 228,
-            top: 44,
-            child: _SocialButton(
-              semanticLabel: 'Continue with Facebook',
-              asset: Assets.facebookIcon,
-              iconLeft: 29,
-              iconTop: 8,
-              iconWidth: 31,
-              iconHeight: 30,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1757,79 +2124,78 @@ class _SocialButton extends StatelessWidget {
   const _SocialButton({
     required this.asset,
     required this.semanticLabel,
-    required this.iconLeft,
-    required this.iconTop,
+    required this.width,
+    required this.height,
     required this.iconWidth,
     required this.iconHeight,
   });
 
   final String asset;
   final String semanticLabel;
-  final double iconLeft;
-  final double iconTop;
+  final double width;
+  final double height;
   final double iconWidth;
   final double iconHeight;
 
   @override
   Widget build(BuildContext context) {
+    final radius = height * 0.38;
     return Semantics(
       button: true,
       label: semanticLabel,
-      child: SizedBox(
-        width: 88,
-        height: 52,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.54),
-                  borderRadius: BorderRadius.circular(19),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0xFF1A2942).withValues(alpha: 0.13),
-                      offset: Offset(0, 12),
-                      blurRadius: 14,
-                    ),
-                  ],
+      child: _LiquidPressable(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(radius),
+        glowColor: AppTheme.blue,
+        pressedScale: 0.96,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.54),
+                    borderRadius: BorderRadius.circular(radius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFF1A2942).withValues(alpha: 0.13),
+                        offset: Offset(0, 12),
+                        blurRadius: 14,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(19),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(19),
-                      color: Colors.white.withValues(alpha: 0.54),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        width: 1,
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: iconLeft,
-                          top: iconTop,
-                          child: Image.asset(
-                            asset,
-                            width: iconWidth,
-                            height: iconHeight,
-                            fit: BoxFit.contain,
-                          ),
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(radius),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(radius),
+                        color: Colors.white.withValues(alpha: 0.54),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          width: 1,
                         ),
-                      ],
+                      ),
+                      child: Image.asset(
+                        asset,
+                        width: iconWidth,
+                        height: iconHeight,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1984,6 +2350,12 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   late int _index = _shellIndexFor(widget.initialIndex);
+  late final List<Widget> _pages = [
+    HomeScreen(store: widget.store),
+    CategoriesScreen(store: widget.store),
+    InboxScreen(inShell: true),
+    AccountProfileScreen(store: widget.store),
+  ];
 
   int _shellIndexFor(int navIndex) {
     if (navIndex == 2) return 0;
@@ -1992,12 +2364,6 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      HomeScreen(store: widget.store),
-      CategoriesScreen(store: widget.store),
-      InboxScreen(inShell: true),
-      AccountProfileScreen(store: widget.store),
-    ];
     return GlassScaffold(
       bottomNavigationBar: GlassBottomNav(
         currentIndex: _index,
@@ -2009,7 +2375,60 @@ class _MainShellState extends State<MainShell> {
           setState(() => _index = index > 2 ? index - 1 : index);
         },
       ),
-      child: IndexedStack(index: _index, children: pages),
+      child: SizedBox.expand(
+        child: Stack(
+          children: [
+            for (var pageIndex = 0; pageIndex < _pages.length; pageIndex++)
+              _AnimatedShellPage(
+                active: pageIndex == _index,
+                currentIndex: _index,
+                pageIndex: pageIndex,
+                child: _pages[pageIndex],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnimatedShellPage extends StatelessWidget {
+  const _AnimatedShellPage({
+    required this.active,
+    required this.currentIndex,
+    required this.pageIndex,
+    required this.child,
+  });
+
+  final bool active;
+  final int currentIndex;
+  final int pageIndex;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final hiddenOffset = pageIndex < currentIndex
+        ? const Offset(-0.045, 0)
+        : const Offset(0.045, 0);
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        ignoring: !active,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          opacity: active ? 1 : 0,
+          child: AnimatedSlide(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            offset: active ? Offset.zero : hiddenOffset,
+            child: HeroMode(
+              enabled: active,
+              child: TickerMode(enabled: active, child: child),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -2027,60 +2446,94 @@ class GlassBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeRealIndex = currentIndex >= 2 ? currentIndex + 1 : currentIndex;
+    final metrics = _ResponsiveMetrics.of(context);
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    final barHeight = metrics.compact ? 62.0 : 66.0;
+    final addLift = metrics.compact ? 10.0 : 12.0;
+    final addSize = metrics.compact ? 60.0 : 64.0;
     return Padding(
-      padding: EdgeInsets.fromLTRB(22, 0, 22, 10),
+      padding: EdgeInsets.fromLTRB(
+        metrics.pagePadding,
+        0,
+        metrics.pagePadding,
+        bottomInset + 8,
+      ),
       child: SizedBox(
-        height: 78,
+        height: barHeight + addLift,
         child: Stack(
+          clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            GlassCard(
-              height: 64,
-              radius: 32,
-              padding: EdgeInsets.fromLTRB(14, 8, 14, 8),
-              opacity: 0.62,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _NavItem(
-                    Icons.home_rounded,
-                    'Home',
-                    activeRealIndex == 0,
-                    () => onTap(0),
-                  ),
-                  _NavItem(
-                    Icons.grid_view_rounded,
-                    'Categories',
-                    activeRealIndex == 1,
-                    () => onTap(1),
-                  ),
-                  SizedBox(width: 66),
-                  _NavItem(
-                    Icons.chat_bubble_outline_rounded,
-                    'Inbox',
-                    activeRealIndex == 3,
-                    () => onTap(3),
-                  ),
-                  _NavItem(
-                    Icons.person_outline_rounded,
-                    'Profile',
-                    activeRealIndex == 4,
-                    () => onTap(4),
-                  ),
-                ],
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: GlassCard(
+                height: barHeight,
+                radius: 32,
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                opacity: 0.62,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _NavItem(
+                        Icons.home_rounded,
+                        'Home',
+                        activeRealIndex == 0,
+                        () => onTap(0),
+                      ),
+                    ),
+                    Expanded(
+                      child: _NavItem(
+                        Icons.grid_view_rounded,
+                        'Categories',
+                        activeRealIndex == 1,
+                        () => onTap(1),
+                      ),
+                    ),
+                    const Expanded(child: SizedBox.expand()),
+                    Expanded(
+                      child: _NavItem(
+                        Icons.chat_bubble_outline_rounded,
+                        'Inbox',
+                        activeRealIndex == 3,
+                        () => onTap(3),
+                      ),
+                    ),
+                    Expanded(
+                      child: _NavItem(
+                        Icons.person_outline_rounded,
+                        'Profile',
+                        activeRealIndex == 4,
+                        () => onTap(4),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             Positioned(
               top: 0,
-              child: GestureDetector(
-                onTap: () => onTap(2),
-                child: GlassCard(
-                  width: 70,
-                  height: 64,
-                  radius: 32,
-                  padding: EdgeInsets.zero,
-                  opacity: 0.68,
-                  child: Icon(Icons.add_rounded, color: AppTheme.red, size: 36),
+              left: 0,
+              right: 0,
+              child: Center(
+                child: _LiquidPressable(
+                  onTap: () => onTap(2),
+                  borderRadius: BorderRadius.circular(addSize / 2),
+                  glowColor: AppTheme.red,
+                  pressedScale: 0.94,
+                  child: GlassCard(
+                    width: addSize,
+                    height: addSize,
+                    radius: addSize / 2,
+                    padding: EdgeInsets.zero,
+                    opacity: 0.68,
+                    child: Icon(
+                      Icons.add_rounded,
+                      color: AppTheme.red,
+                      size: metrics.compact ? 34 : 36,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -2101,26 +2554,43 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final compact = _ResponsiveMetrics.of(context).compact;
+    return _LiquidPressable(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 58,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: active ? AppTheme.red : AppTheme.ink, size: 21),
-            SizedBox(height: 5),
-            Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: active ? AppTheme.red : AppTheme.ink,
+      borderRadius: BorderRadius.circular(18),
+      glowColor: AppTheme.red,
+      pressedScale: 0.94,
+      child: SizedBox.expand(
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SizedBox(
+              width: compact ? 54 : 60,
+              height: 48,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    color: active ? AppTheme.red : AppTheme.ink,
+                    size: compact ? 20 : 21,
+                  ),
+                  SizedBox(height: compact ? 4 : 5),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: compact ? 9 : 10,
+                      fontWeight: FontWeight.w800,
+                      color: active ? AppTheme.red : AppTheme.ink,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -2144,8 +2614,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
+        final metrics = _ResponsiveMetrics.of(context);
         return ListView(
-          padding: EdgeInsets.fromLTRB(22, 18, 22, 118),
+          padding: metrics.pageInsetsWithNav,
           children: [
             Row(
               children: [
@@ -2153,37 +2624,57 @@ class _HomeScreenState extends State<HomeScreen> {
                   asset: Assets.homeAvatar,
                   onTap: () => Navigator.pushNamed(context, '/seller'),
                 ),
-                SizedBox(width: 18),
+                SizedBox(width: metrics.compact ? 12 : 18),
                 Expanded(
                   child: GlassCard(
                     height: 48,
                     radius: 26,
                     padding: EdgeInsets.all(5),
-                    child: Row(
-                      children: [
-                        _SegmentPill(
-                          'Market',
-                          _segment == 0,
-                          () => setState(() => _segment = 0),
-                        ),
-                        _SegmentPill(
-                          'Community',
-                          _segment == 1,
-                          () => setState(() => _segment = 1),
-                        ),
-                      ],
+                    child: _HomeSegmentControl(
+                      value: _segment,
+                      onChanged: (value) {
+                        if (_segment == value) return;
+                        setState(() => _segment = value);
+                      },
                     ),
                   ),
                 ),
-                SizedBox(width: 18),
+                SizedBox(width: metrics.compact ? 12 : 18),
                 CircleGlassButton(icon: Icons.search_rounded),
               ],
             ),
-            SizedBox(height: 28),
-            if (_segment == 0)
-              ..._marketContent(context)
-            else
-              ..._communityContent(context),
+            SizedBox(height: metrics.compact ? 20 : 28),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                reverseDuration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final fromRight = (child.key as ValueKey<int>).value == 1;
+                  final offset = Tween<Offset>(
+                    begin: Offset(fromRight ? 0.055 : -0.055, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: offset, child: child),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey<int>(_segment),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _segment == 0
+                        ? _marketContent(context)
+                        : _communityContent(context),
+                  ),
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -2231,6 +2722,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return ListingCard(
           listing: listing,
           large: true,
+          openStore: widget.store,
           onTap: () =>
               Navigator.pushNamed(context, '/product', arguments: listing),
         );
@@ -2271,6 +2763,58 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _HomeSegmentControl extends StatelessWidget {
+  const _HomeSegmentControl({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            alignment: value == 0
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white.withValues(alpha: 0.82),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.red.withValues(alpha: 0.14),
+                      offset: Offset(0, 7),
+                      blurRadius: 15,
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.54),
+                      offset: Offset(-2, -2),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Row(
+          children: [
+            _SegmentPill('Market', value == 0, () => onChanged(0)),
+            _SegmentPill('Community', value == 1, () => onChanged(1)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _SegmentPill extends StatelessWidget {
   const _SegmentPill(this.label, this.active, this.onTap);
 
@@ -2281,33 +2825,22 @@ class _SegmentPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: _LiquidPressable(
         onTap: onTap,
-        child: AnimatedContainer(
+        active: active,
+        borderRadius: BorderRadius.circular(24),
+        glowColor: AppTheme.red,
+        pressedScale: 0.96,
+        child: AnimatedDefaultTextStyle(
           duration: Duration(milliseconds: 180),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: active
-                ? Colors.white.withValues(alpha: 0.84)
-                : Colors.transparent,
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: AppTheme.red.withValues(alpha: 0.12),
-                      offset: Offset(0, 6),
-                      blurRadius: 14,
-                    ),
-                  ]
-                : null,
+          curve: Curves.easeOutCubic,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: active ? AppTheme.red : AppTheme.muted,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              color: active ? AppTheme.red : AppTheme.muted,
-            ),
+          child: Center(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
       ),
@@ -2322,6 +2855,7 @@ class ListingCard extends StatelessWidget {
     this.onTap,
     this.onEdit,
     this.onDelete,
+    this.openStore,
     this.large = false,
   });
 
@@ -2329,92 +2863,120 @@ class ListingCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final ListingStore? openStore;
   final bool large;
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     final hasActions = onEdit != null || onDelete != null;
-    if (!hasActions) {
-      return _HomeListingCard(listing: listing, onTap: onTap);
-    }
-    final imageWidth = 172.0;
-    final imageHeight = 184.0;
-    final detailsColumn = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(listing.status.toUpperCase(), style: AppTheme.label),
-        SizedBox(height: 8),
-        Text(
-          listing.shortTitle,
-          style: AppTheme.h2.copyWith(fontSize: large ? 25 : 19),
-        ),
-        SizedBox(height: 8),
-        Text(listing.condition, style: AppTheme.body),
-        SizedBox(height: 18),
-        Text(
-          listing.priceLabel,
-          style: TextStyle(
-            color: AppTheme.red,
-            fontWeight: FontWeight.w900,
-            fontSize: 13,
-          ),
-        ),
-        if (!large) ...[
-          SizedBox(height: 4),
-          Text(
-            '${listing.views} views',
-            style: AppTheme.body.copyWith(fontSize: 11),
-          ),
-        ],
-      ],
-    );
+    final heroTag = _listingHeroTag(listing);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        margin: EdgeInsets.only(bottom: 18),
-        padding: EdgeInsets.fromLTRB(20, 16, 14, 18),
-        radius: 30,
-        child: SizedBox(
-          height: 190,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(left: 0, top: 0, width: 176, child: detailsColumn),
-              Positioned(
-                right: 58,
-                top: -8,
-                child: ProductImage(
-                  asset: listing.imageAsset,
-                  width: imageWidth,
-                  height: imageHeight,
-                ),
-              ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Column(
-                  children: [
-                    CircleGlassButton(
-                      icon: Icons.edit_rounded,
-                      color: AppTheme.blue,
-                      size: 38,
-                      onTap: onEdit,
+    Widget buildCard(VoidCallback? tap) {
+      if (!hasActions) {
+        return _HomeListingCard(listing: listing, onTap: tap, heroTag: heroTag);
+      }
+      final imageWidth = 172.0;
+      final imageHeight = 184.0;
+      final detailsColumn = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(listing.status.toUpperCase(), style: AppTheme.label),
+          SizedBox(height: 8),
+          Text(
+            listing.shortTitle,
+            style: AppTheme.h2.copyWith(fontSize: large ? 25 : 19),
+          ),
+          SizedBox(height: 8),
+          Text(listing.condition, style: AppTheme.body),
+          SizedBox(height: 18),
+          Text(
+            listing.priceLabel,
+            style: TextStyle(
+              color: AppTheme.red,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
+          ),
+          if (!large) ...[
+            SizedBox(height: 4),
+            Text(
+              '${listing.views} views',
+              style: AppTheme.body.copyWith(fontSize: 11),
+            ),
+          ],
+        ],
+      );
+
+      return _LiquidPressable(
+        onTap: tap,
+        borderRadius: BorderRadius.circular(metrics.cardRadius),
+        glowColor: AppTheme.blue,
+        child: GlassCard(
+          margin: EdgeInsets.only(bottom: metrics.gutter + 2),
+          padding: EdgeInsets.fromLTRB(20, 16, 14, 18),
+          radius: metrics.cardRadius,
+          opacity: 0.22,
+          blur: 42,
+          borderOpacity: 0.9,
+          child: SizedBox(
+            height: metrics.listingActionCardHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: metrics.compact ? 5 : 4, child: detailsColumn),
+                SizedBox(width: metrics.compact ? 4 : 6),
+                Expanded(
+                  flex: metrics.compact ? 5 : 6,
+                  child: Transform.scale(
+                    scale: metrics.compact ? 1.1 : 1.14,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: ProductImage(
+                        asset: listing.imageAsset,
+                        width: imageWidth,
+                        height: imageHeight,
+                        heroTag: heroTag,
+                      ),
                     ),
-                    SizedBox(height: 10),
-                    CircleGlassButton(
-                      icon: Icons.delete_outline_rounded,
-                      color: AppTheme.red,
-                      size: 38,
-                      onTap: onDelete,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(width: metrics.compact ? 4 : 6),
+                SizedBox(
+                  width: 38,
+                  child: Column(
+                    children: [
+                      CircleGlassButton(
+                        icon: Icons.edit_rounded,
+                        color: AppTheme.blue,
+                        size: 38,
+                        onTap: onEdit,
+                      ),
+                      SizedBox(height: 10),
+                      CircleGlassButton(
+                        icon: Icons.delete_outline_rounded,
+                        color: AppTheme.red,
+                        size: 38,
+                        onTap: onDelete,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
+      );
+    }
+
+    final store = openStore;
+    if (store == null) return buildCard(onTap);
+
+    return _OpenMotionContainer(
+      radius: metrics.cardRadius,
+      routeSettings: RouteSettings(name: '/product', arguments: listing),
+      openPage: ProductDetailScreen(store: store, listing: listing),
+      closedBuilder: buildCard,
     );
   }
 }
@@ -2434,83 +2996,80 @@ class ProductDetailScreen extends StatelessWidget {
         listing ??
         store.byId('ipod-classic') ??
         (store.listings.isNotEmpty ? store.listings.first : fallbackItem);
-    final imageWidth = 316.0;
-    final imageHeight = 413.0;
-    final imageTop = 93.0;
     return GlassScaffold(
       includeSafeArea: false,
       background: const DetailAeroBackground(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final panelTop = constraints.maxHeight < 940
-              ? constraints.maxHeight - 441
-              : 515.0;
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                left: 24,
-                top: 76,
-                child: CircleGlassButton(
-                  icon: Icons.arrow_back_ios_new_rounded,
-                  size: 44,
-                  onTap: () => Navigator.pop(context),
+      child: SafeArea(
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final metrics = _ResponsiveMetrics.of(context);
+            final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
+            return Stack(
+              children: [
+                ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    metrics.pagePadding,
+                    metrics.topGap,
+                    metrics.pagePadding,
+                    104 + bottomPadding,
+                  ),
+                  children: [
+                    Row(
+                      children: [
+                        CircleGlassButton(
+                          icon: Icons.arrow_back_ios_new_rounded,
+                          size: 44,
+                          onTap: () => Navigator.pop(context),
+                        ),
+                        const Spacer(),
+                        CircleGlassButton(
+                          icon: Icons.ios_share_rounded,
+                          size: 44,
+                        ),
+                        SizedBox(width: metrics.compact ? 10 : 14),
+                        const _FavoriteButton(size: 44),
+                      ],
+                    ),
+                    SizedBox(height: metrics.compact ? 14 : 22),
+                    Center(
+                      child: SizedBox(
+                        height: metrics.detailImageHeight,
+                        width: constraints.maxWidth - metrics.pagePadding * 2,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: ProductImage(
+                            asset: item.imageAsset,
+                            width: 316,
+                            height: 413,
+                            heroTag: _listingHeroTag(item),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: metrics.compact ? 8 : 14),
+                    const Center(child: _Dots()),
+                    SizedBox(height: metrics.compact ? 14 : 20),
+                    _ProductDetailPanel(item: item),
+                  ],
                 ),
-              ),
-              Positioned(
-                right: 81,
-                top: 77,
-                child: CircleGlassButton(
-                  icon: Icons.ios_share_rounded,
-                  size: 44,
+                Positioned(
+                  left: metrics.pagePadding + 10,
+                  right: metrics.pagePadding + 10,
+                  bottom: 10 + bottomPadding,
+                  child: LiquidButton(
+                    label: 'Contact Seller',
+                    icon: Icons.chat_bubble_outline_rounded,
+                    height: metrics.compact ? 54 : 60,
+                    onPressed: () =>
+                        Navigator.pushNamed(context, '/chat', arguments: item),
+                  ),
                 ),
-              ),
-              Positioned(
-                right: 20,
-                top: 76,
-                child: CircleGlassButton(
-                  icon: Icons.favorite_rounded,
-                  color: AppTheme.red,
-                  size: 44,
-                ),
-              ),
-              Positioned(
-                left: (width - imageWidth) / 2,
-                top: imageTop,
-                child: ProductImage(
-                  asset: item.imageAsset,
-                  width: imageWidth,
-                  height: imageHeight,
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 465,
-                child: Center(child: _Dots()),
-              ),
-              Positioned(
-                left: 20,
-                right: 20,
-                top: panelTop,
-                child: _ProductDetailPanel(item: item),
-              ),
-              Positioned(
-                left: 32,
-                right: 32,
-                bottom: 10,
-                child: LiquidButton(
-                  label: 'Contact Seller',
-                  icon: Icons.chat_bubble_outline_rounded,
-                  height: 60,
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/chat', arguments: item),
-                ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -2523,141 +3082,145 @@ class _ProductDetailPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     return GlassCard(
-      height: 390,
-      padding: EdgeInsets.zero,
-      radius: 30,
-      opacity: 0.66,
-      blur: 12,
-      borderOpacity: 0.72,
-      child: Stack(
+      padding: EdgeInsets.all(metrics.compact ? 18 : 22),
+      radius: metrics.cardRadius,
+      opacity: 0.42,
+      blur: 30,
+      borderOpacity: 0.82,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Positioned(
-            left: 24,
-            top: 17,
-            child: Text('FEATURED', style: AppTheme.label),
-          ),
-          Positioned(
-            right: 24,
-            top: 17,
-            child: Text(
-              item.priceLabel,
-              style: AppTheme.label.copyWith(color: AppTheme.red, fontSize: 14),
-            ),
-          ),
-          Positioned(
-            left: 24,
-            top: 44,
-            width: 258,
-            child: RichText(
-              text: TextSpan(
-                style: AppTheme.h1.copyWith(fontSize: 25, height: 1.06),
-                children: [
-                  TextSpan(text: '${item.title}\n'),
-                  TextSpan(
-                    text: item.subtitle,
-                    style: TextStyle(color: AppTheme.red),
-                  ),
-                  _accentSquare(size: 8),
-                ],
+          Row(
+            children: [
+              Text('FEATURED', style: AppTheme.label),
+              const Spacer(),
+              Text(
+                item.priceLabel,
+                style: AppTheme.label.copyWith(
+                  color: AppTheme.red,
+                  fontSize: 14,
+                ),
               ),
-            ),
+            ],
           ),
-          Positioned(
-            right: 24,
-            top: 54,
-            child: CircleGlassButton(
-              icon: Icons.shopping_cart_outlined,
-              color: AppTheme.blue,
-              size: 46,
-            ),
-          ),
-          Positioned(
-            left: 24,
-            top: 126,
-            width: 310,
-            child: Text(
-              item.description,
-              style: AppTheme.body.copyWith(fontSize: 12, height: 1.5),
-            ),
-          ),
-          Positioned(
-            left: 24,
-            right: 24,
-            top: 196,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _SpecChip(
-                    Icons.sd_storage_rounded,
-                    item.storage,
-                    'Storage',
+          SizedBox(height: metrics.compact ? 14 : 18),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: AppTheme.h1.copyWith(
+                      fontSize: metrics.compact ? 22 : 25,
+                      height: 1.08,
+                    ),
+                    children: [
+                      TextSpan(text: '${item.title}\n'),
+                      TextSpan(
+                        text: item.subtitle,
+                        style: TextStyle(color: AppTheme.red),
+                      ),
+                      _accentSquare(size: 8),
+                    ],
                   ),
                 ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _SpecChip(
-                    Icons.battery_full_rounded,
-                    item.battery,
-                    'Battery Life',
+              ),
+              SizedBox(width: metrics.gutter),
+              CircleGlassButton(
+                icon: Icons.shopping_cart_outlined,
+                color: AppTheme.blue,
+                size: metrics.compact ? 42 : 46,
+              ),
+            ],
+          ),
+          SizedBox(height: metrics.compact ? 14 : 18),
+          Text(
+            item.description,
+            style: AppTheme.body.copyWith(fontSize: 12, height: 1.5),
+          ),
+          SizedBox(height: metrics.compact ? 16 : 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth < 360 ? 2 : 4;
+              const spacing = 10.0;
+              final chipWidth =
+                  (constraints.maxWidth - (columns - 1) * spacing) / columns;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  SizedBox(
+                    width: chipWidth,
+                    child: _SpecChip(
+                      Icons.sd_storage_rounded,
+                      item.storage,
+                      'Storage',
+                    ),
                   ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _SpecChip(Icons.music_note_rounded, '10K+', 'Songs'),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _SpecChip(
-                    Icons.settings_input_component_rounded,
-                    item.connector,
-                    'Connector',
+                  SizedBox(
+                    width: chipWidth,
+                    child: _SpecChip(
+                      Icons.battery_full_rounded,
+                      item.battery,
+                      'Battery Life',
+                    ),
                   ),
+                  SizedBox(
+                    width: chipWidth,
+                    child: _SpecChip(Icons.music_note_rounded, '10K+', 'Songs'),
+                  ),
+                  SizedBox(
+                    width: chipWidth,
+                    child: _SpecChip(
+                      Icons.settings_input_component_rounded,
+                      item.connector,
+                      'Connector',
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          SizedBox(height: metrics.compact ? 18 : 22),
+          Divider(height: 1, color: AppTheme.line),
+          SizedBox(height: metrics.compact ? 16 : 18),
+          Text('Seller', style: AppTheme.h2.copyWith(fontSize: 15)),
+          SizedBox(height: metrics.compact ? 10 : 12),
+          Row(
+            children: [
+              LogoMark(size: 43),
+              SizedBox(width: metrics.gutter),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.seller,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.h2.copyWith(fontSize: 14),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '${item.rating} ★  (${item.reviews})',
+                      style: AppTheme.label.copyWith(fontSize: 13),
+                    ),
+                    Text(
+                      'Active today',
+                      style: AppTheme.body.copyWith(fontSize: 11, height: 1.1),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: 24,
-            right: 24,
-            top: 266,
-            child: Divider(height: 1, color: AppTheme.line),
-          ),
-          Positioned(
-            left: 24,
-            top: 284,
-            child: Text('Seller', style: AppTheme.h2.copyWith(fontSize: 15)),
-          ),
-          Positioned(left: 24, top: 312, child: LogoMark(size: 43)),
-          Positioned(
-            left: 87,
-            top: 313,
-            child: Text(item.seller, style: AppTheme.h2.copyWith(fontSize: 14)),
-          ),
-          Positioned(
-            left: 87,
-            top: 333,
-            child: Text(
-              '${item.rating} ★  (${item.reviews})',
-              style: AppTheme.label.copyWith(fontSize: 13),
-            ),
-          ),
-          Positioned(
-            left: 87,
-            top: 352,
-            child: Text(
-              'Active today',
-              style: AppTheme.body.copyWith(fontSize: 11, height: 1.1),
-            ),
-          ),
-          Positioned(
-            right: 24,
-            top: 318,
-            child: CircleGlassButton(
-              icon: Icons.more_horiz_rounded,
-              size: 42,
-              onTap: () => Navigator.pushNamed(context, '/seller'),
-            ),
+              ),
+              CircleGlassButton(
+                icon: Icons.more_horiz_rounded,
+                size: 42,
+                onTap: () => Navigator.pushNamed(context, '/seller'),
+              ),
+            ],
           ),
         ],
       ),
@@ -2744,13 +3307,21 @@ class _SpecChip extends StatelessWidget {
   }
 }
 
-class CategoriesScreen extends StatelessWidget {
+class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key, required this.store});
 
   final ListingStore store;
 
   @override
+  State<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends State<CategoriesScreen> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     final categories = [
       _CategoryData(
         'Phones',
@@ -2784,87 +3355,132 @@ class CategoriesScreen extends StatelessWidget {
       ),
       _CategoryData('Wearables', '64 items', Icons.watch_rounded, Assets.watch),
     ];
+    final visibleCategories = _query.trim().isEmpty
+        ? categories
+        : categories
+              .where(
+                (category) =>
+                    category.name.toLowerCase().contains(
+                      _query.trim().toLowerCase(),
+                    ) ||
+                    category.count.toLowerCase().contains(
+                      _query.trim().toLowerCase(),
+                    ),
+              )
+              .toList();
     return ListView(
-      padding: EdgeInsets.fromLTRB(22, 18, 22, 118),
+      padding: metrics.pageInsetsWithNav,
       children: [
         Row(
           children: [
-            CircleGlassButton(icon: Icons.search_rounded),
-            Spacer(),
-            Text('Categories', style: AppTheme.h2),
-            Spacer(),
-            CircleGlassButton(icon: Icons.tune_rounded),
+            CircleGlassButton(
+              icon: Icons.search_rounded,
+              size: metrics.compact ? 42 : 46,
+            ),
+            Expanded(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('Categories', style: AppTheme.h2),
+                ),
+              ),
+            ),
+            CircleGlassButton(
+              icon: Icons.tune_rounded,
+              size: metrics.compact ? 42 : 46,
+            ),
           ],
         ),
         SizedBox(height: 18),
         GlassCard(
-          height: 44,
+          height: 48,
           radius: 24,
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Icon(Icons.search_rounded, color: AppTheme.muted, size: 18),
-              SizedBox(width: 10),
-              Text('Search retro devices', style: AppTheme.body),
-            ],
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          child: TextField(
+            key: const ValueKey('category-search-field'),
+            onChanged: (value) => setState(() => _query = value),
+            style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.ink),
+            decoration: InputDecoration(
+              icon: Icon(Icons.search_rounded, color: AppTheme.muted, size: 18),
+              hintText: 'Search retro devices',
+              hintStyle: AppTheme.body,
+              border: InputBorder.none,
+            ),
           ),
         ),
         SizedBox(height: 22),
-        GridView.count(
+        GridView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 1.06,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          children: categories.map((category) {
-            return GestureDetector(
-              onTap: () => Navigator.pushNamed(
-                context,
-                '/category',
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: visibleCategories.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: metrics.categoryColumns,
+            childAspectRatio: metrics.categoryColumns == 3 ? 0.86 : 1.06,
+            crossAxisSpacing: metrics.gutter,
+            mainAxisSpacing: metrics.gutter,
+          ),
+          itemBuilder: (context, index) {
+            final category = visibleCategories[index];
+            return _OpenMotionContainer(
+              radius: metrics.cardRadius,
+              routeSettings: RouteSettings(
+                name: '/category',
                 arguments: category.name,
               ),
-              child: GlassCard(
-                padding: EdgeInsets.all(10),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      top: -4,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: ProductImage(
-                          asset: category.asset,
-                          width: 152,
-                          height: 122,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+              openPage: CategoryDetailScreen(
+                store: widget.store,
+                category: category.name,
+              ),
+              closedBuilder: (openContainer) => _LiquidPressable(
+                onTap: openContainer,
+                borderRadius: BorderRadius.circular(metrics.cardRadius),
+                glowColor: AppTheme.blue,
+                child: GlassCard(
+                  padding: EdgeInsets.all(metrics.compact ? 8 : 10),
+                  radius: metrics.cardRadius,
+                  opacity: 0.24,
+                  blur: 38,
+                  borderOpacity: 0.88,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Expanded(
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: ProductImage(
+                                  asset: category.asset,
+                                  width: 152,
+                                  height: 122,
+                                  heroTag: _categoryHeroTag(category.name),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: metrics.compact ? 4 : 6),
                           Text(
                             category.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: AppTheme.label.copyWith(color: AppTheme.red),
                           ),
                           SizedBox(height: 4),
                           Text(
                             category.count,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: AppTheme.body.copyWith(fontSize: 11),
                           ),
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
               ),
             );
-          }).toList(),
+          },
         ),
       ],
     );
@@ -2892,6 +3508,7 @@ class CategoryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     return GlassScaffold(
       bottomNavigationBar: GlassBottomNav(
         currentIndex: 1,
@@ -2934,6 +3551,32 @@ class CategoryDetailScreen extends StatelessWidget {
                 ],
               ),
               SizedBox(height: 22),
+              GlassCard(
+                height: 126,
+                radius: metrics.cardRadius,
+                padding: EdgeInsets.fromLTRB(18, 12, 18, 12),
+                opacity: 0.22,
+                blur: 42,
+                borderOpacity: 0.9,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$category Collection',
+                        style: AppTheme.h2.copyWith(fontSize: 18),
+                      ),
+                    ),
+                    SizedBox(width: metrics.gutter),
+                    ProductImage(
+                      asset: _categoryAssetFor(category),
+                      width: 120,
+                      height: 100,
+                      heroTag: _categoryHeroTag(category),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 18),
               Row(
                 children: [
                   _FilterPill('All', true),
@@ -2946,6 +3589,7 @@ class CategoryDetailScreen extends StatelessWidget {
               ...items.map(
                 (listing) => ListingCard(
                   listing: listing,
+                  openStore: store,
                   onTap: () => Navigator.pushNamed(
                     context,
                     '/product',
@@ -2969,19 +3613,28 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(right: 8),
-      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: EdgeInsets.only(right: 8),
+      child: _LiquidPressable(
+        onTap: () {},
+        active: active,
         borderRadius: BorderRadius.circular(999),
-        color: active ? AppTheme.red : Colors.white.withValues(alpha: 0.58),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: active ? Colors.white : AppTheme.muted,
-          fontWeight: FontWeight.w900,
-          fontSize: 11,
+        glowColor: active ? AppTheme.red : AppTheme.blue,
+        pressedScale: 0.95,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: active ? AppTheme.red : Colors.white.withValues(alpha: 0.58),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: active ? Colors.white : AppTheme.muted,
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+            ),
+          ),
         ),
       ),
     );
@@ -3559,6 +4212,7 @@ class MyListingsScreen extends StatelessWidget {
                   ...store.listings.map(
                     (listing) => ListingCard(
                       listing: listing,
+                      openStore: store,
                       onTap: () => Navigator.pushNamed(
                         context,
                         '/product',
@@ -3666,8 +4320,8 @@ class DeleteConfirmationScreen extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: 18),
-                    ListingCard(listing: listing),
-                    ListingCard(listing: seedListings[1]),
+                    ListingCard(listing: listing, openStore: store),
+                    ListingCard(listing: seedListings[1], openStore: store),
                   ],
                 );
               },
@@ -4435,6 +5089,7 @@ class SellerProfileScreen extends StatelessWidget {
               .map(
                 (listing) => ListingCard(
                   listing: listing,
+                  openStore: store,
                   onTap: () => Navigator.pushNamed(
                     context,
                     '/product',
@@ -4527,8 +5182,10 @@ class _MessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return _LiquidPressable(
       onTap: () => Navigator.pushNamed(context, '/chat'),
+      borderRadius: BorderRadius.circular(30),
+      glowColor: AppTheme.blue,
       child: GlassCard(
         margin: EdgeInsets.only(bottom: 12),
         padding: EdgeInsets.all(12),
@@ -4581,15 +5238,25 @@ class _MessageTile extends StatelessWidget {
   }
 }
 
-class ChatThreadScreen extends StatelessWidget {
+class ChatThreadScreen extends StatefulWidget {
   const ChatThreadScreen({super.key, this.listing});
 
   final Listing? listing;
 
   @override
-  Widget build(BuildContext context) {
-    final item = listing ?? seedListings.first;
-    final messages = [
+  State<ChatThreadScreen> createState() => _ChatThreadScreenState();
+}
+
+class _ChatThreadScreenState extends State<ChatThreadScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  late final List<_ChatLine> _messages = _initialMessages;
+
+  Listing get _item => widget.listing ?? seedListings.first;
+
+  List<_ChatLine> get _initialMessages {
+    final item = _item;
+    return [
       _ChatLine(
         'Hi! Thanks for your interest in the ${item.title}.',
         false,
@@ -4626,11 +5293,46 @@ class ChatThreadScreen extends StatelessWidget {
         '2:19 PM',
       ),
     ];
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _messages.add(_ChatLine(text, true, 'Now'));
+      _messageController.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _item;
+    final metrics = _ResponsiveMetrics.of(context);
     return GlassScaffold(
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(22, 18, 22, 0),
+            padding: EdgeInsets.fromLTRB(
+              metrics.pagePadding,
+              metrics.topGap,
+              metrics.pagePadding,
+              0,
+            ),
             child: Row(
               children: [
                 CircleGlassButton(
@@ -4658,7 +5360,12 @@ class ChatThreadScreen extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(22, 14, 22, 10),
+            padding: EdgeInsets.fromLTRB(
+              metrics.pagePadding,
+              14,
+              metrics.pagePadding,
+              10,
+            ),
             child: GlassCard(
               padding: EdgeInsets.all(12),
               child: Row(
@@ -4687,7 +5394,13 @@ class ChatThreadScreen extends StatelessWidget {
           ),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.fromLTRB(22, 8, 22, 8),
+              controller: _scrollController,
+              padding: EdgeInsets.fromLTRB(
+                metrics.pagePadding,
+                8,
+                metrics.pagePadding,
+                8,
+              ),
               children: [
                 Center(
                   child: Text(
@@ -4696,12 +5409,17 @@ class ChatThreadScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 12),
-                ...messages.map((message) => _ChatBubble(message)),
+                ..._messages.map((message) => _ChatBubble(message)),
               ],
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 6, 20, 18),
+            padding: EdgeInsets.fromLTRB(
+              metrics.pagePadding,
+              6,
+              metrics.pagePadding,
+              18 + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             child: GlassCard(
               radius: 999,
               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -4709,11 +5427,29 @@ class ChatThreadScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.image_outlined, color: AppTheme.muted),
                   SizedBox(width: 12),
-                  Expanded(child: Text('Message seller', style: AppTheme.body)),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('chat-message-field'),
+                      controller: _messageController,
+                      onSubmitted: (_) => _sendMessage(),
+                      minLines: 1,
+                      maxLines: 3,
+                      style: TextStyle(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Message seller',
+                        hintStyle: AppTheme.body,
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
                   CircleGlassButton(
                     icon: Icons.send_rounded,
                     color: AppTheme.red,
                     size: 42,
+                    onTap: _sendMessage,
                   ),
                 ],
               ),
@@ -4796,11 +5532,17 @@ class HelpSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     return GlassScaffold(
       child: Stack(
         children: [
           ListView(
-            padding: EdgeInsets.fromLTRB(22, 18, 22, 104),
+            padding: EdgeInsets.fromLTRB(
+              metrics.pagePadding,
+              metrics.topGap,
+              metrics.pagePadding,
+              104,
+            ),
             children: [
               Row(
                 children: [
@@ -4831,7 +5573,8 @@ class HelpSupportScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 18),
-              Row(
+              Wrap(
+                runSpacing: 8,
                 children: [
                   _FilterPill('Orders', true),
                   _FilterPill('Selling', false),
@@ -4859,8 +5602,8 @@ class HelpSupportScreen extends StatelessWidget {
             ],
           ),
           Positioned(
-            left: 22,
-            right: 22,
+            left: metrics.pagePadding,
+            right: metrics.pagePadding,
             bottom: 22,
             child: LiquidButton(
               label: 'Start Live Chat',
@@ -4874,33 +5617,67 @@ class HelpSupportScreen extends StatelessWidget {
   }
 }
 
-class _FaqTile extends StatelessWidget {
+class _FaqTile extends StatefulWidget {
   const _FaqTile(this.title, this.body);
 
   final String title;
   final String body;
 
   @override
+  State<_FaqTile> createState() => _FaqTileState();
+}
+
+class _FaqTileState extends State<_FaqTile> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
-      radius: 22,
-      child: Row(
-        children: [
-          Icon(Icons.help_outline_rounded, color: AppTheme.blue),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return _LiquidPressable(
+      onTap: () => setState(() => _expanded = !_expanded),
+      active: _expanded,
+      borderRadius: BorderRadius.circular(22),
+      glowColor: AppTheme.blue,
+      child: GlassCard(
+        margin: EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.all(16),
+        radius: 22,
+        child: Column(
+          children: [
+            Row(
               children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.w900)),
-                Text(body, style: AppTheme.body.copyWith(fontSize: 12)),
+                Icon(Icons.help_outline_rounded, color: AppTheme.blue),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _expanded ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.muted,
+                  ),
+                ),
               ],
             ),
-          ),
-          Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
-        ],
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              child: _expanded
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 10, left: 36),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(widget.body, style: AppTheme.body),
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4911,291 +5688,291 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _ResponsiveMetrics.of(context);
     return GlassScaffold(
       includeSafeArea: false,
       background: const _AboutBackground(),
-      child: SingleChildScrollView(
-        physics: BouncingScrollPhysics(),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final scale = constraints.maxWidth < _aboutCanvasWidth
-                ? constraints.maxWidth / _aboutCanvasWidth
-                : 1.0;
-            return SizedBox(
-              height: _aboutCanvasHeight * scale,
-              child: Transform.scale(
-                scale: scale,
-                alignment: Alignment.topLeft,
-                child: SizedBox(
-                  width: _aboutCanvasWidth,
-                  height: _aboutCanvasHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned(
-                        left: 24,
-                        top: 76,
-                        child: _AboutIconButton(
-                          icon: Icons.arrow_back_ios_new_rounded,
-                          onTap: () => popOrMain(context),
-                        ),
-                      ),
-                      Positioned(
-                        left: 384,
-                        top: 76,
-                        child: _AboutIconButton(icon: Icons.ios_share_rounded),
-                      ),
-                      Positioned(
-                        left: 26,
-                        top: 145,
-                        width: 120,
-                        child: Text('ABOUT US', style: _AboutText.eyebrow),
-                      ),
-                      Positioned(
-                        left: 26,
-                        top: 174,
-                        width: 200,
-                        child: Text('More than', style: _AboutText.hero),
-                      ),
-                      Positioned(
-                        left: 230,
-                        top: 112,
-                        width: 185,
-                        height: 150,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned(
-                              left: -47.75,
-                              top: -5,
-                              width: 262.799,
-                              height: 206.339,
-                              child: Transform.rotate(
-                                angle: 0.06981317007977318,
-                                child: Image.asset(
-                                  Assets.glassButterfly,
-                                  fit: BoxFit.fill,
-                                  filterQuality: FilterQuality.high,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Positioned(
-                        left: 26,
-                        top: 210,
-                        width: 250,
-                        child: RichText(
-                          text: TextSpan(
-                            style: _AboutText.hero,
-                            children: [
-                              TextSpan(text: 'a '),
-                              TextSpan(
-                                text: 'Marketplace',
-                                style: TextStyle(color: _aboutRed),
-                              ),
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.baseline,
-                                baseline: TextBaseline.alphabetic,
-                                child: Padding(
-                                  padding: EdgeInsets.only(left: 4, bottom: 2),
-                                  child: SizedBox(
-                                    width: 8,
-                                    height: 8,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: _aboutRed,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            metrics.pagePadding,
+            metrics.topGap,
+            metrics.pagePadding,
+            30 + MediaQuery.viewPaddingOf(context).bottom,
+          ),
+          children: [
+            Row(
+              children: [
+                _AboutIconButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  onTap: () => popOrMain(context),
+                ),
+                const Spacer(),
+                const _AboutIconButton(icon: Icons.ios_share_rounded),
+              ],
+            ),
+            SizedBox(height: metrics.compact ? 28 : 42),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final showInlineArt = constraints.maxWidth >= 340;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _AboutHeroCopy(compact: metrics.compact)),
+                    if (showInlineArt) ...[
+                      SizedBox(width: metrics.gutter),
+                      SizedBox(
+                        width: constraints.maxWidth * 0.5,
+                        height: metrics.compact ? 168 : 210,
+                        child: Transform.rotate(
+                          angle: 0.06981317007977318,
+                          child: Image.asset(
+                            Assets.glassButterfly,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 26,
-                        top: 274,
-                        width: 260,
-                        child: Text(
-                          'A community built on\ntrust, passion, and nostalgia.',
-                          style: _AboutText.subcopy,
-                        ),
-                      ),
-                      Positioned(
-                        left: 27,
-                        top: 352,
-                        child: _SmallDash(_aboutRed),
-                      ),
-                      Positioned(
-                        left: 57,
-                        top: 352,
-                        child: _SmallDash(_aboutBlue),
-                      ),
-                      Positioned(
-                        left: 26,
-                        top: 405,
-                        width: 330,
-                        child: Text.rich(
-                          TextSpan(
-                            style: _AboutText.body,
-                            children: [
-                              TextSpan(
-                                text: 'RetroTech',
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              TextSpan(
-                                text:
-                                    ' is the go-to marketplace\nfor collectors and enthusiasts of ',
-                              ),
-                              TextSpan(
-                                text: 'Y2K',
-                                style: TextStyle(
-                                  color: _aboutRed,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              TextSpan(text: '\nelectronics. From '),
-                              TextSpan(
-                                text: 'classic',
-                                style: TextStyle(
-                                  color: _aboutBlue,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              TextSpan(
-                                text:
-                                    ' devices\nto rare finds, we bring the best\nof the past to your future.',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 28,
-                        top: 558,
-                        child: _AboutIconButton(
-                          icon: Icons.arrow_forward_rounded,
-                          color: _aboutRed,
-                          size: 42,
-                          iconSize: 22,
-                        ),
-                      ),
-                      Positioned(
-                        left: 96,
-                        top: 571,
-                        width: 150,
-                        child: Text(
-                          'Learn more about our',
-                          style: _AboutText.ctaCopy,
-                        ),
-                      ),
-                      Positioned(
-                        left: 223,
-                        top: 571,
-                        width: 70,
-                        child: Text('mission', style: _AboutText.ctaLink),
-                      ),
-                      Positioned(
-                        left: 26,
-                        top: 632,
-                        width: 170,
-                        child: Text(
-                          'WHAT WE STAND FOR',
-                          style: _AboutText.section,
-                        ),
-                      ),
-                      Positioned(
-                        left: 24,
-                        top: 662,
-                        child: _ValueCard(
-                          Icons.favorite_rounded,
-                          'Trust & Safety',
-                          'Secure payments\nand verified\nsellers.',
-                          _aboutRed,
-                          iconTop: 4,
-                          titleLeft: 20,
-                          titleTop: 43,
-                          copyTop: 63,
-                          iconSize: 18,
-                        ),
-                      ),
-                      Positioned(
-                        left: 156,
-                        top: 662,
-                        child: _ValueCard(
-                          Icons.groups_rounded,
-                          'Community First',
-                          'Connect with\ncollectors who\nshare your passion.',
-                          _aboutBlue,
-                          iconTop: 5,
-                          titleLeft: 11,
-                          titleTop: 44,
-                          copyTop: 65,
-                          iconSize: 16,
-                        ),
-                      ),
-                      Positioned(
-                        left: 288,
-                        top: 662,
-                        child: _ValueCard(
-                          Icons.eco_rounded,
-                          'Sustainability',
-                          'Give vintage\ntech a second\nlife together.',
-                          _aboutGreen,
-                          iconTop: 6,
-                          titleLeft: 23,
-                          titleTop: 47,
-                          copyTop: 65,
-                          iconSize: 16,
-                        ),
-                      ),
-                      Positioned(
-                        left: 26,
-                        top: 800,
-                        width: 150,
-                        child: Text(
-                          'BY THE NUMBERS',
-                          style: _AboutText.section,
-                        ),
-                      ),
-                      Positioned(
-                        left: 27,
-                        top: 822,
-                        child: _Number('10K+', 'Happy Buyers', _aboutRed),
-                      ),
-                      Positioned(
-                        left: 126,
-                        top: 822,
-                        child: _Number('5K+', 'Verified Sellers', _aboutBlue),
-                      ),
-                      Positioned(
-                        left: 225,
-                        top: 822,
-                        child: _Number('50K+', 'Products Sold', _aboutGreen),
-                      ),
-                      Positioned(
-                        left: 324,
-                        top: 822,
-                        child: _Number('100+', 'Countries', _aboutViolet),
-                      ),
-                      Positioned(left: 24, top: 889, child: _AboutNewsCard()),
                     ],
-                  ),
+                  ],
+                );
+              },
+            ),
+            if (metrics.width < 340) ...[
+              SizedBox(height: metrics.gutter),
+              SizedBox(
+                height: 190,
+                child: Image.asset(
+                  Assets.glassButterfly,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
                 ),
               ),
-            );
-          },
+            ],
+            SizedBox(height: metrics.compact ? 30 : 42),
+            Row(
+              children: const [
+                _SmallDash(_aboutRed),
+                SizedBox(width: 10),
+                _SmallDash(_aboutBlue),
+              ],
+            ),
+            SizedBox(height: metrics.compact ? 28 : 38),
+            Text.rich(
+              TextSpan(
+                style: _AboutText.body,
+                children: [
+                  TextSpan(
+                    text: 'RetroTech',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(
+                    text:
+                        ' is the go-to marketplace for collectors and enthusiasts of ',
+                  ),
+                  TextSpan(
+                    text: 'Y2K',
+                    style: TextStyle(
+                      color: _aboutRed,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(text: ' electronics. From '),
+                  TextSpan(
+                    text: 'classic',
+                    style: TextStyle(
+                      color: _aboutBlue,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        ' devices to rare finds, we bring the best of the past to your future.',
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: metrics.compact ? 28 : 42),
+            Row(
+              children: [
+                _AboutIconButton(
+                  icon: Icons.arrow_forward_rounded,
+                  color: _aboutRed,
+                  size: 42,
+                  iconSize: 22,
+                ),
+                SizedBox(width: metrics.gutter),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Learn more about our ',
+                          style: _AboutText.ctaCopy,
+                        ),
+                        TextSpan(text: 'mission', style: _AboutText.ctaLink),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: metrics.compact ? 32 : 44),
+            Text('WHAT WE STAND FOR', style: _AboutText.section),
+            SizedBox(height: metrics.gutter),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final gap = metrics.compact ? 8.0 : 10.0;
+                final cardWidth = ((constraints.maxWidth - gap * 2) / 3)
+                    .clamp(88.0, 116.0)
+                    .toDouble();
+                return Row(
+                  children: [
+                    _ValueCard(
+                      Icons.favorite_rounded,
+                      'Trust & Safety',
+                      'Secure payments\nand verified\nsellers.',
+                      _aboutRed,
+                      width: cardWidth,
+                      iconTop: 4,
+                      titleLeft: 20,
+                      titleTop: 43,
+                      copyTop: 63,
+                      iconSize: 18,
+                    ),
+                    SizedBox(width: gap),
+                    _ValueCard(
+                      Icons.groups_rounded,
+                      'Community First',
+                      'Connect with\ncollectors who\nshare your passion.',
+                      _aboutBlue,
+                      width: cardWidth,
+                      iconTop: 5,
+                      titleLeft: 11,
+                      titleTop: 44,
+                      copyTop: 65,
+                      iconSize: 16,
+                    ),
+                    SizedBox(width: gap),
+                    _ValueCard(
+                      Icons.eco_rounded,
+                      'Sustainability',
+                      'Give vintage\ntech a second\nlife together.',
+                      _aboutGreen,
+                      width: cardWidth,
+                      iconTop: 6,
+                      titleLeft: 23,
+                      titleTop: 47,
+                      copyTop: 65,
+                      iconSize: 16,
+                    ),
+                  ],
+                );
+              },
+            ),
+            SizedBox(height: metrics.compact ? 32 : 44),
+            Text('BY THE NUMBERS', style: _AboutText.section),
+            SizedBox(height: metrics.gutter),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final gap = metrics.compact ? 6.0 : 8.0;
+                final numberWidth = ((constraints.maxWidth - gap * 3) / 4)
+                    .clamp(64.0, 90.0)
+                    .toDouble();
+                return Row(
+                  children: [
+                    _Number(
+                      '10K+',
+                      'Happy Buyers',
+                      _aboutRed,
+                      width: numberWidth,
+                    ),
+                    SizedBox(width: gap),
+                    _Number(
+                      '5K+',
+                      'Verified Sellers',
+                      _aboutBlue,
+                      width: numberWidth,
+                    ),
+                    SizedBox(width: gap),
+                    _Number(
+                      '50K+',
+                      'Products Sold',
+                      _aboutGreen,
+                      width: numberWidth,
+                    ),
+                    SizedBox(width: gap),
+                    _Number(
+                      '100+',
+                      'Countries',
+                      _aboutViolet,
+                      width: numberWidth,
+                    ),
+                  ],
+                );
+              },
+            ),
+            SizedBox(height: metrics.compact ? 28 : 36),
+            const _AboutNewsCard(),
+          ],
         ),
       ),
     );
   }
 }
 
-const _aboutCanvasWidth = 440.0;
-const _aboutCanvasHeight = 956.0;
+class _AboutHeroCopy extends StatelessWidget {
+  const _AboutHeroCopy({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final heroStyle = _AboutText.hero.copyWith(fontSize: compact ? 26 : 28);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('ABOUT US', style: _AboutText.eyebrow),
+        SizedBox(height: compact ? 18 : 22),
+        Text('More than', style: heroStyle),
+        RichText(
+          text: TextSpan(
+            style: heroStyle,
+            children: [
+              const TextSpan(text: 'a '),
+              const TextSpan(
+                text: 'Marketplace',
+                style: TextStyle(color: _aboutRed),
+              ),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 2),
+                  child: SizedBox(
+                    width: 8,
+                    height: 8,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: _aboutRed),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: compact ? 16 : 20),
+        Text(
+          'A community built on trust, passion, and nostalgia.',
+          style: _AboutText.subcopy.copyWith(fontSize: compact ? 16 : 17),
+        ),
+      ],
+    );
+  }
+}
+
 const _aboutInk = Color(0xFF080A0F);
 const _aboutMuted = Color(0xFF5C637A);
 const _aboutEyebrow = Color(0xFF4791DB);
@@ -5365,6 +6142,7 @@ class _AboutGlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final glassSheen = opacity.clamp(0.08, 0.22).toDouble();
     return Container(
       width: width,
       height: height,
@@ -5372,22 +6150,27 @@ class _AboutGlassSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF1A2942).withValues(alpha: 0.12),
-            offset: Offset(0, 10),
-            blurRadius: 12,
+            color: Colors.white.withValues(alpha: glassSheen * 1.45),
+            offset: Offset(-2, -2),
+            blurRadius: 10,
+          ),
+          BoxShadow(
+            color: Color(0xFF1A2942).withValues(alpha: 0.1),
+            offset: Offset(0, 16),
+            blurRadius: 24,
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 11, sigmaY: 11),
+          filter: ImageFilter.blur(sigmaX: 72, sigmaY: 72),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: opacity),
+              color: Colors.transparent,
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.72),
-                width: 1,
+                color: Colors.white.withValues(alpha: 0.94),
+                width: 1.1,
               ),
               borderRadius: BorderRadius.circular(radius),
             ),
@@ -5416,13 +6199,19 @@ class _AboutIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: _AboutGlassSurface(
-        width: size,
-        height: size,
-        radius: size / 2,
-        child: Icon(icon, color: color, size: iconSize ?? size * 0.54),
+    return SizedBox(
+      width: size,
+      height: size,
+      child: _LiquidPressable(
+        onTap: onTap ?? () {},
+        borderRadius: BorderRadius.circular(size / 2),
+        glowColor: color,
+        child: _AboutGlassSurface(
+          width: size,
+          height: size,
+          radius: size / 2,
+          child: Icon(icon, color: color, size: iconSize ?? size * 0.54),
+        ),
       ),
     );
   }
@@ -5452,6 +6241,7 @@ class _ValueCard extends StatelessWidget {
     this.title,
     this.text,
     this.color, {
+    required this.width,
     required this.iconTop,
     required this.titleLeft,
     required this.titleTop,
@@ -5463,6 +6253,7 @@ class _ValueCard extends StatelessWidget {
   final String title;
   final String text;
   final Color color;
+  final double width;
   final double iconTop;
   final double titleLeft;
   final double titleTop;
@@ -5471,76 +6262,103 @@ class _ValueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _AboutGlassSurface(
-      width: 116,
-      height: 112,
-      radius: 18,
-      opacity: 0.52,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 40,
-            top: iconTop,
-            child: _AboutGlassSurface(
-              width: 34,
-              height: 34,
-              radius: 17,
-              child: Icon(icon, color: color, size: iconSize),
+    final height = (112 * (width / 116)).clamp(92.0, 112.0).toDouble();
+    return _LiquidPressable(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(18),
+      glowColor: color,
+      child: _AboutGlassSurface(
+        width: width,
+        height: height,
+        radius: 18 * (width / 116).clamp(0.82, 1),
+        opacity: 0.52,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: SizedBox(
+              width: 116,
+              height: 112,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 40,
+                    top: iconTop,
+                    child: _AboutGlassSurface(
+                      width: 34,
+                      height: 34,
+                      radius: 17,
+                      child: Icon(icon, color: color, size: iconSize),
+                    ),
+                  ),
+                  Positioned(
+                    left: titleLeft,
+                    top: titleTop,
+                    width: 92,
+                    child: Text(
+                      title,
+                      style: _AboutText.valueTitle.copyWith(color: color),
+                      textAlign: TextAlign.left,
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    top: copyTop,
+                    width: 92,
+                    child: Text(
+                      text,
+                      style: _AboutText.valueCopy,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          Positioned(
-            left: titleLeft,
-            top: titleTop,
-            width: 92,
-            child: Text(
-              title,
-              style: _AboutText.valueTitle.copyWith(color: color),
-              textAlign: TextAlign.left,
-            ),
-          ),
-          Positioned(
-            left: 12,
-            top: copyTop,
-            width: 92,
-            child: Text(
-              text,
-              style: _AboutText.valueCopy,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _Number extends StatelessWidget {
-  const _Number(this.value, this.label, this.color);
+  const _Number(this.value, this.label, this.color, {required this.width});
 
   final String value;
   final String label;
   final Color color;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 90,
+      width: width,
       height: 43,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            width: 80,
-            child: Text(value, style: _AboutText.metric.copyWith(color: color)),
+      child: FittedBox(
+        alignment: Alignment.centerLeft,
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: 90,
+          height: 43,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                top: 0,
+                width: 80,
+                child: Text(
+                  value,
+                  style: _AboutText.metric.copyWith(color: color),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                top: 28,
+                width: 90,
+                child: Text(label, style: _AboutText.metricLabel),
+              ),
+            ],
           ),
-          Positioned(
-            left: 0,
-            top: 28,
-            width: 90,
-            child: Text(label, style: _AboutText.metricLabel),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -5551,67 +6369,73 @@ class _AboutNewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _AboutGlassSurface(
-      width: 392,
-      height: 64,
-      radius: 30,
-      opacity: 0.58,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            width: 93,
-            height: 62,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(31),
-              child: Image.asset(
-                Assets.latestNewsThumbnail,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) =>
-                    ProductImage(asset: Assets.gameboy, width: 93, height: 62),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 340;
+        return _LiquidPressable(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(30),
+          glowColor: _aboutRed,
+          child: _AboutGlassSurface(
+            width: constraints.maxWidth,
+            height: compact ? 78 : 64,
+            radius: 30,
+            opacity: 0.58,
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(31),
+                  child: Image.asset(
+                    Assets.latestNewsThumbnail,
+                    width: compact ? 76 : 93,
+                    height: compact ? 78 : 64,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) => ProductImage(
+                      asset: Assets.gameboy,
+                      width: compact ? 76 : 93,
+                      height: compact ? 78 : 64,
+                    ),
+                  ),
+                ),
+                SizedBox(width: compact ? 12 : 18),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('LATEST NEWS', style: _AboutText.newsEyebrow),
+                      SizedBox(height: compact ? 3 : 4),
+                      Text(
+                        'New Arrivals: Transparent Tech',
+                        style: _AboutText.newsTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: compact ? 2 : 3),
+                      Text(
+                        'Explore rare transparent gadgets',
+                        style: _AboutText.newsCopy,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.only(right: compact ? 8 : 12),
+                  child: _AboutIconButton(
+                    icon: Icons.arrow_forward_rounded,
+                    color: _aboutRed,
+                    size: 38,
+                    iconSize: 20,
+                  ),
+                ),
+              ],
             ),
           ),
-          Positioned(
-            left: 111,
-            top: 7,
-            width: 120,
-            child: Text('LATEST NEWS', style: _AboutText.newsEyebrow),
-          ),
-          Positioned(
-            left: 111,
-            top: 23,
-            width: 205,
-            child: Text(
-              'New Arrivals: Transparent Tech',
-              style: _AboutText.newsTitle,
-              maxLines: 1,
-              overflow: TextOverflow.visible,
-            ),
-          ),
-          Positioned(
-            left: 111,
-            top: 39,
-            width: 205,
-            child: Text(
-              'Explore rare transparent gadgets',
-              style: _AboutText.newsCopy,
-            ),
-          ),
-          Positioned(
-            left: 341,
-            top: 12,
-            child: _AboutIconButton(
-              icon: Icons.arrow_forward_rounded,
-              color: _aboutRed,
-              size: 38,
-              iconSize: 20,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -5631,47 +6455,62 @@ class _CommunityPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      margin: EdgeInsets.only(bottom: 14),
-      padding: EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipOval(child: ProductImage(asset: asset, width: 44, height: 44)),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(user, style: TextStyle(fontWeight: FontWeight.w900)),
-                    Spacer(),
-                    Text(time, style: AppTheme.body.copyWith(fontSize: 10)),
-                  ],
-                ),
-                SizedBox(height: 6),
-                Text(text, style: AppTheme.body.copyWith(color: AppTheme.ink)),
-                SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.favorite_border_rounded,
-                      color: AppTheme.red,
-                      size: 17,
-                    ),
-                    SizedBox(width: 8),
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: AppTheme.blue,
-                      size: 17,
-                    ),
-                  ],
-                ),
-              ],
+    return _LiquidPressable(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(30),
+      glowColor: AppTheme.blue,
+      child: GlassCard(
+        margin: EdgeInsets.only(bottom: 14),
+        padding: EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipOval(child: ProductImage(asset: asset, width: 44, height: 44)),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          user,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(time, style: AppTheme.body.copyWith(fontSize: 10)),
+                    ],
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    text,
+                    style: AppTheme.body.copyWith(color: AppTheme.ink),
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.favorite_border_rounded,
+                        color: AppTheme.red,
+                        size: 17,
+                      ),
+                      SizedBox(width: 8),
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        color: AppTheme.blue,
+                        size: 17,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
