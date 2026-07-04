@@ -6,6 +6,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/liquid_button.dart';
 import '../../widgets/logo_mark.dart';
 import '../../widgets/navigation.dart';
+import '../checkout/delivery_address_screen.dart';
 import '../checkout/order_confirmation_screen.dart';
 import '../product/my_listings_screen.dart';
 import '../settings/settings_screen.dart';
@@ -81,25 +82,7 @@ class AccountProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(height: 10),
-            Row(
-              children: [
-                ProfileStat(
-                  '${store.listings.length}',
-                  'Listings',
-                  Icons.article_outlined,
-                ),
-                ProfileStat(
-                  '${store.savedListings.length}',
-                  'Saved',
-                  Icons.favorite_rounded,
-                  color: AppTheme.red,
-                ),
-                ProfileStat('1.2K', 'Followers', Icons.groups_rounded),
-                ProfileStat('98%', 'Rating', Icons.star_rounded),
-              ],
-            ),
-            SizedBox(height: 16),
+            SizedBox(height: 18),
             Text(
               'Marketplace Dashboard',
               style: AppTheme.h2.copyWith(fontSize: 16),
@@ -109,25 +92,32 @@ class AccountProfileScreen extends StatelessWidget {
               children: [
                 ProfileRow(
                   'My Listings',
-                  '${store.listings.length}',
                   Icons.sell_outlined,
                   null,
+                  badge: '${store.listings.length}',
                   openPage: MyListingsScreen(store: store),
                   routeSettings: const RouteSettings(name: '/my-listings'),
                 ),
                 ProfileRow(
                   'Orders',
-                  '${store.orders.length}',
                   Icons.inventory_2_outlined,
                   null,
+                  badge: '${store.orders.length}',
                   openPage: OrdersScreen(store: store),
                   routeSettings: const RouteSettings(name: '/orders'),
                 ),
                 ProfileRow(
+                  'Delivery Address',
+                  Icons.location_on_outlined,
+                  null,
+                  openPage: DeliveryAddressScreen(store: store),
+                  routeSettings: const RouteSettings(name: '/delivery-address'),
+                ),
+                ProfileRow(
                   'Saved Items',
-                  '${store.savedListings.length}',
                   Icons.favorite_border_rounded,
                   null,
+                  badge: '${store.savedListings.length}',
                   openPage: SavedItemsScreen(store: store),
                   routeSettings: const RouteSettings(name: '/saved-items'),
                 ),
@@ -159,18 +149,18 @@ class AccountProfileScreen extends StatelessWidget {
 class ProfileRow extends StatelessWidget {
   const ProfileRow(
     this.title,
-    this.badge,
     this.icon,
     this.onTap, {
     super.key,
+    this.badge,
     this.openPage,
     this.routeSettings,
   });
 
   final String title;
-  final String badge;
   final IconData icon;
   final VoidCallback? onTap;
+  final String? badge;
   final Widget? openPage;
   final RouteSettings? routeSettings;
 
@@ -247,7 +237,12 @@ class CommunityPostCard extends StatelessWidget {
     this.handle,
     this.likes,
     this.replies,
+    this.liked = false,
+    this.reposted = false,
     this.sourceLabel,
+    this.onReply,
+    this.onLike,
+    this.onRepost,
     this.onTap,
   });
 
@@ -258,7 +253,12 @@ class CommunityPostCard extends StatelessWidget {
   final String? handle;
   final int? likes;
   final int? replies;
+  final bool liked;
+  final bool reposted;
   final String? sourceLabel;
+  final VoidCallback? onReply;
+  final VoidCallback? onLike;
+  final VoidCallback? onRepost;
   final VoidCallback? onTap;
 
   @override
@@ -268,132 +268,161 @@ class CommunityPostCard extends StatelessWidget {
     final replyLabel = replies == null ? null : '${replies!}';
     final likeLabel = likes == null ? null : '${likes!}';
 
-    return LiquidPressable(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(26),
-      glowColor: AppTheme.blue,
-      child: GlassCard(
-        margin: EdgeInsets.only(bottom: 12),
-        padding: EdgeInsets.fromLTRB(14, 14, 14, 12),
-        radius: 26,
-        opacity: 0.48,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipOval(
-              child: ProductImage(
-                asset: asset,
-                width: compact ? 40 : 44,
-                height: compact ? 40 : 44,
-              ),
+    return GlassCard(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.fromLTRB(14, 14, 14, 12),
+      radius: 26,
+      opacity: 0.48,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipOval(
+            child: ProductImage(
+              asset: asset,
+              width: compact ? 40 : 44,
+              height: compact ? 40 : 44,
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (sourceLabel != null) ...[
-                    Text(
-                      sourceLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.label.copyWith(color: AppTheme.muted),
-                    ),
-                    SizedBox(height: 5),
-                  ],
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: 7,
-                          runSpacing: 2,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (sourceLabel != null) ...[
+                  Text(
+                    sourceLabel!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.label.copyWith(color: AppTheme.muted),
+                  ),
+                  SizedBox(height: 5),
+                ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 7,
+                        runSpacing: 2,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            user,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          if (handle != null)
                             Text(
-                              user,
+                              handle!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontWeight: FontWeight.w900),
+                              style: AppTheme.body.copyWith(fontSize: 12),
                             ),
-                            if (handle != null)
-                              Text(
-                                handle!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTheme.body.copyWith(fontSize: 12),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
-                      SizedBox(width: 8),
-                      Text(time, style: AppTheme.body.copyWith(fontSize: 11)),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    text,
-                    style: AppTheme.body.copyWith(
-                      color: AppTheme.ink,
-                      fontSize: 14.5,
-                      height: 1.34,
                     ),
+                    SizedBox(width: 8),
+                    Text(time, style: AppTheme.body.copyWith(fontSize: 11)),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  text,
+                  style: AppTheme.body.copyWith(
+                    color: AppTheme.ink,
+                    fontSize: 14.5,
+                    height: 1.34,
                   ),
-                  SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _CommunityCardAction(
-                        Icons.chat_bubble_outline_rounded,
-                        label: replyLabel,
-                        color: AppTheme.blue,
-                      ),
-                      SizedBox(width: 16),
-                      _CommunityCardAction(
-                        Icons.favorite_border_rounded,
-                        label: likeLabel,
-                        color: AppTheme.red,
-                      ),
-                      SizedBox(width: 16),
-                      _CommunityCardAction(
-                        Icons.repeat_rounded,
-                        label: null,
-                        color: AppTheme.muted,
-                      ),
-                      const Spacer(),
-                      Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  children: [
+                    _CommunityCardAction(
+                      Icons.chat_bubble_outline_rounded,
+                      key: ValueKey('community-card-reply-$user'),
+                      label: replyLabel,
+                      color: AppTheme.blue,
+                      onTap: onReply,
+                    ),
+                    SizedBox(width: 16),
+                    _CommunityCardAction(
+                      liked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      key: ValueKey('community-card-like-$user'),
+                      label: likeLabel,
+                      color: AppTheme.red,
+                      active: liked,
+                      onTap: onLike,
+                    ),
+                    SizedBox(width: 16),
+                    _CommunityCardAction(
+                      Icons.repeat_rounded,
+                      key: ValueKey('community-card-repost-$user'),
+                      label: null,
+                      color: reposted ? AppTheme.blue : AppTheme.muted,
+                      active: reposted,
+                      onTap: onRepost,
+                    ),
+                    const Spacer(),
+                    _CommunityCardAction(
+                      Icons.chevron_right_rounded,
+                      key: ValueKey('community-card-open-$user'),
+                      label: null,
+                      color: AppTheme.muted,
+                      onTap: onTap,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _CommunityCardAction extends StatelessWidget {
-  const _CommunityCardAction(this.icon, {this.label, required this.color});
+  const _CommunityCardAction(
+    this.icon, {
+    super.key,
+    this.label,
+    required this.color,
+    this.active = false,
+    this.onTap,
+  });
 
   final IconData icon;
   final String? label;
   final Color color;
+  final bool active;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 17),
-        if (label != null) ...[
-          SizedBox(width: 5),
-          Text(
-            label!,
-            style: AppTheme.label.copyWith(color: color, fontSize: 12),
-          ),
-        ],
-      ],
+    return LiquidPressable(
+      onTap: onTap,
+      active: active,
+      borderRadius: BorderRadius.circular(18),
+      glowColor: color,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 17),
+            if (label != null) ...[
+              SizedBox(width: 5),
+              Text(
+                label!,
+                style: AppTheme.label.copyWith(color: color, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

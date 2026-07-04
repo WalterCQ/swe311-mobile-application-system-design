@@ -637,53 +637,86 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
               metrics.pagePadding,
               10,
             ),
-            child: LiquidPressable(
-              onTap: () =>
-                  Navigator.pushNamed(context, '/product', arguments: item),
-              borderRadius: BorderRadius.circular(26),
-              glowColor: AppTheme.blue,
-              child: GlassCard(
-                radius: 26,
-                padding: EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    ProductImage(asset: item.imageAsset, width: 64, height: 58),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.shortTitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            item.priceLabel,
-                            style: AppTheme.label.copyWith(
-                              color: AppTheme.red,
-                              fontSize: 12,
+            child: GlassCard(
+              radius: 26,
+              padding: EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LiquidPressable(
+                      key: const ValueKey('chat-product-card-open-product'),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/product',
+                        arguments: item,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      glowColor: AppTheme.blue,
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Row(
+                          children: [
+                            ProductImage(
+                              asset: item.imageAsset,
+                              width: 64,
+                              height: 58,
                             ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            '${_cleanListingMeta(item.condition)} - Rating ${item.rating.toStringAsFixed(1)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTheme.body.copyWith(fontSize: 11),
-                          ),
-                        ],
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.shortTitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    item.priceLabel,
+                                    style: AppTheme.label.copyWith(
+                                      color: AppTheme.red,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    '${_cleanListingMeta(item.condition)} - Rating ${item.rating.toStringAsFixed(1)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.body.copyWith(fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppTheme.blue,
+                              size: 24,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppTheme.blue,
-                      size: 24,
+                  ),
+                  SizedBox(width: 10),
+                  SizedBox(
+                    width: metrics.compact ? 78 : 88,
+                    child: LiquidButton(
+                      key: const ValueKey('chat-product-card-buy-now'),
+                      label: 'Buy Now',
+                      height: 44,
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '/checkout',
+                        arguments: item,
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

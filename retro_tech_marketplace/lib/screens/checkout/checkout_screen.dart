@@ -8,6 +8,7 @@ import '../../widgets/glass_scaffold.dart';
 import '../../widgets/liquid_button.dart';
 import '../../widgets/logo_mark.dart';
 import '../../widgets/navigation.dart';
+import 'delivery_address_screen.dart';
 import '../profile/payment_methods_screen.dart';
 
 class CheckoutScreen extends StatelessWidget {
@@ -19,7 +20,7 @@ class CheckoutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = listing ?? seedListings.first;
-    final total = item.price + 35 + 15;
+    final total = item.price + 35;
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) => GlassScaffold(
@@ -28,7 +29,7 @@ class CheckoutScreen extends StatelessWidget {
             ListView(
               padding: EdgeInsets.fromLTRB(22, 18, 22, 104),
               children: [
-                TopBar(title: 'Checkout'),
+                TopBar(title: 'Checkout', showTrailing: false),
                 SizedBox(height: 18),
                 GlassCard(
                   child: Row(
@@ -67,24 +68,24 @@ class CheckoutScreen extends StatelessWidget {
                 _CheckoutTile(
                   Icons.location_on_outlined,
                   'Delivery Address',
-                  'Liu Zhenyu\nNo. 18, Jalan Bukit Indah\nKuala Lumpur, Malaysia',
+                  store.selectedDeliveryAddress.checkoutSummary,
+                  openPage: DeliveryAddressScreen(
+                    store: store,
+                    closeOnSave: true,
+                  ),
+                  routeSettings: const RouteSettings(name: '/delivery-address'),
                 ),
                 _CheckoutTile(
                   Icons.credit_card_outlined,
                   'Payment Method',
-                  '${store.selectedPaymentMethod.title}   Selected',
+                  '${store.selectedPaymentMethod.title}\n${store.selectedPaymentMethod.processingNote}',
                   openPage: PaymentMethodsScreen(
                     store: store,
                     closeOnSelect: true,
                   ),
                   routeSettings: const RouteSettings(name: '/payment-methods'),
                 ),
-                _CheckoutTile(
-                  Icons.shield_outlined,
-                  'Buyer Protection',
-                  'Secure payment and verified listing coverage included.',
-                ),
-                SizedBox(height: 16),
+                SizedBox(height: 4),
                 Text(
                   'Order Summary',
                   style: AppTheme.h2.copyWith(fontSize: 16),
@@ -95,7 +96,6 @@ class CheckoutScreen extends StatelessWidget {
                     children: [
                       _MoneyRow('Item Price', item.price),
                       _MoneyRow('Shipping', 35),
-                      _MoneyRow('Protection Fee', 15),
                       Divider(color: AppTheme.line),
                       _MoneyRow('Total', total, strong: true),
                     ],

@@ -20,87 +20,318 @@ class OrderConfirmationScreen extends StatelessWidget {
     final item = order ?? _fallbackOrder(store);
     return GlassScaffold(
       child: ListView(
-        padding: EdgeInsets.fromLTRB(22, 30, 22, 30),
+        padding: EdgeInsets.fromLTRB(22, 22, 22, 30),
         children: [
           Center(child: Text('RetroTech', style: AppTheme.h2)),
-          SizedBox(height: 54),
-          Center(
-            child: GlassCard(
-              width: 112,
-              height: 112,
-              radius: 56,
-              padding: EdgeInsets.zero,
-              child: Icon(Icons.done_rounded, color: AppTheme.red, size: 58),
-            ),
-          ),
-          SizedBox(height: 28),
-          Center(child: Text('Order Confirmed', style: AppTheme.h1)),
           SizedBox(height: 24),
-          GlassCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.listingTitle,
-                        style: AppTheme.h2.copyWith(fontSize: 17),
-                      ),
-                      SizedBox(height: 8),
-                      Text('Order #${item.id}', style: AppTheme.label),
-                      Text(
-                        item.status,
-                        style: AppTheme.label.copyWith(color: AppTheme.green),
-                      ),
-                      Text(
-                        'Paid via ${item.paymentMethodTitle}',
-                        style: AppTheme.body.copyWith(fontSize: 12),
-                      ),
-                      Text(
-                        item.totalLabel,
-                        style: AppTheme.h2.copyWith(
-                          fontSize: 16,
-                          color: AppTheme.blue,
-                        ),
-                      ),
-                      Text(
-                        'Seller: ${item.seller}',
-                        style: AppTheme.body.copyWith(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                ProductImage(asset: item.imageAsset, width: 72, height: 72),
-              ],
-            ),
-          ),
-          SizedBox(height: 22),
-          Row(
-            children: [
-              _ProgressChip('Paid', Icons.done_rounded, true),
-              _ProgressChip(
-                'Seller Notified',
-                Icons.notifications_rounded,
-                true,
-              ),
-              _ProgressChip('Preparing', Icons.inventory_2_outlined, false),
-            ],
-          ),
-          SizedBox(height: 30),
+          _ConfirmationHero(),
+          SizedBox(height: 16),
+          _ReceiptSummaryCard(order: item),
+          SizedBox(height: 16),
+          _ConfirmationTimeline(),
+          SizedBox(height: 24),
           LiquidButton(
             label: 'Track Order',
             icon: Icons.my_location_rounded,
             onPressed: () =>
                 Navigator.pushNamed(context, '/order-detail', arguments: item),
           ),
-          TextButton(
+          SizedBox(height: 6),
+          TextButton.icon(
             onPressed: () => Navigator.pushNamedAndRemoveUntil(
               context,
               '/main',
               (route) => false,
             ),
-            child: Text('Back to Home', style: AppTheme.label),
+            icon: Icon(Icons.home_outlined, color: AppTheme.blue, size: 20),
+            label: Text('Back to Home', style: AppTheme.label),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfirmationHero extends StatelessWidget {
+  const _ConfirmationHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: EdgeInsets.fromLTRB(18, 22, 18, 22),
+      borderOpacity: 0.94,
+      child: Column(
+        children: [
+          Container(
+            width: 86,
+            height: 86,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.green.withValues(alpha: 0.12),
+              border: Border.all(color: AppTheme.green.withValues(alpha: 0.28)),
+            ),
+            child: Icon(Icons.done_rounded, color: AppTheme.green, size: 52),
+          ),
+          SizedBox(height: 18),
+          Text(
+            'Order Confirmed',
+            textAlign: TextAlign.center,
+            style: AppTheme.h1,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Payment completed. The seller has been notified.',
+            textAlign: TextAlign.center,
+            style: AppTheme.body.copyWith(fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceiptSummaryCard extends StatelessWidget {
+  const _ReceiptSummaryCard({required this.order});
+
+  final OrderRecord order;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: EdgeInsets.all(18),
+      borderOpacity: 0.92,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Receipt Summary',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.h2.copyWith(fontSize: 16),
+                ),
+              ),
+              SizedBox(width: 12),
+              _StatusPill(label: order.status),
+            ],
+          ),
+          SizedBox(height: 14),
+          Text(
+            order.totalLabel,
+            style: AppTheme.h1.copyWith(fontSize: 30, color: AppTheme.blue),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Paid via ${order.paymentMethodTitle}',
+            style: AppTheme.body.copyWith(fontSize: 13),
+          ),
+          SizedBox(height: 16),
+          Divider(color: AppTheme.line),
+          SizedBox(height: 12),
+          Row(
+            children: [
+              ProductImage(asset: order.imageAsset, width: 74, height: 74),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.listingTitle,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text('Seller: ${order.seller}', style: AppTheme.body),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          _ReceiptRow(
+            icon: Icons.confirmation_number_outlined,
+            title: 'Order number',
+            value: '#${order.id}',
+          ),
+          _ReceiptRow(
+            icon: Icons.credit_card_outlined,
+            title: 'Payment method',
+            value: order.paymentMethodTitle,
+          ),
+          _ReceiptRow(
+            icon: Icons.inventory_2_outlined,
+            title: 'Current status',
+            value: order.status,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.green.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.green.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.label.copyWith(color: AppTheme.green, fontSize: 11),
+      ),
+    );
+  }
+}
+
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.blue, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(title, style: AppTheme.body.copyWith(fontSize: 13)),
+          ),
+          SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.ink,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfirmationTimeline extends StatelessWidget {
+  const _ConfirmationTimeline();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: EdgeInsets.fromLTRB(14, 16, 14, 14),
+      borderOpacity: 0.92,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Next Steps', style: AppTheme.h2.copyWith(fontSize: 16)),
+          SizedBox(height: 14),
+          Row(
+            children: [
+              _TimelineStep(
+                label: 'Paid',
+                icon: Icons.done_rounded,
+                complete: true,
+              ),
+              _TimelineConnector(complete: true),
+              _TimelineStep(
+                label: 'Seller Notified',
+                icon: Icons.notifications_rounded,
+                complete: true,
+              ),
+              _TimelineConnector(complete: false),
+              _TimelineStep(
+                label: 'Preparing Shipment',
+                icon: Icons.inventory_2_outlined,
+                complete: false,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineConnector extends StatelessWidget {
+  const _TimelineConnector({required this.complete});
+
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 2,
+      margin: EdgeInsets.only(bottom: 28),
+      color: (complete ? AppTheme.blue : AppTheme.line).withValues(alpha: 0.82),
+    );
+  }
+}
+
+class _TimelineStep extends StatelessWidget {
+  const _TimelineStep({
+    required this.label,
+    required this.icon,
+    required this.complete,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = complete ? AppTheme.blue : AppTheme.muted;
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: complete ? 0.14 : 0.08),
+              border: Border.all(color: color.withValues(alpha: 0.24)),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.body.copyWith(
+              fontSize: 10,
+              height: 1.16,
+              color: complete ? AppTheme.ink : AppTheme.muted,
+            ),
           ),
         ],
       ),

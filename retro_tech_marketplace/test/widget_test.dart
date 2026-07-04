@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:retro_tech_marketplace/app.dart';
 import 'package:retro_tech_marketplace/constants/assets.dart';
 import 'package:retro_tech_marketplace/data/listing_repository.dart';
+import 'package:retro_tech_marketplace/models/delivery_address.dart';
 import 'package:retro_tech_marketplace/models/listing.dart';
 import 'package:retro_tech_marketplace/models/order_record.dart';
 import 'package:retro_tech_marketplace/models/user_profile.dart';
@@ -16,6 +17,7 @@ import 'package:retro_tech_marketplace/screens/settings/chat_thread_screen.dart'
 import 'package:retro_tech_marketplace/screens/settings/settings_screen.dart';
 import 'package:retro_tech_marketplace/screens/auth/registration_screen.dart';
 import 'package:retro_tech_marketplace/screens/checkout/checkout_screen.dart';
+import 'package:retro_tech_marketplace/screens/checkout/delivery_address_screen.dart';
 import 'package:retro_tech_marketplace/screens/checkout/order_confirmation_screen.dart';
 import 'package:retro_tech_marketplace/screens/product/category_detail_screen.dart';
 import 'package:retro_tech_marketplace/screens/product/listing_form_screen.dart';
@@ -211,18 +213,74 @@ void main() {
 
     await tester.tap(find.text('Following').first);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('community-card-like-PalmPilotFan')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
-      find.text('I can include the original earbuds for the Walkman bundle.'),
+      find.byKey(const ValueKey('community-card-like-PalmPilotFan')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('19'), findsOneWidget);
+    expect(find.text('Reply to PalmPilotFan'), findsNothing);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('community-card-reply-VintageAudioCo')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('community-card-reply-VintageAudioCo')),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Reply to VintageAudioCo'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('community-send-reply')));
+    await tester.pumpAndSettle();
+    expect(find.text('Write a reply first.'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Copy post'), findsOneWidget);
+    await tester.tap(find.text('Copy post'));
+    await tester.pumpAndSettle();
+    expect(find.text('Post copied to clipboard.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('community-post-like')));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    expect(find.text('25'), findsOneWidget);
+
+    const firstReplyKey =
+        'RetroTech Collector|@retrotech|12m|That makes the bundle much more complete.';
+    await tester.tap(
+      find.byKey(const ValueKey('community-reply-reply-$firstReplyKey')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(TextField),
+        matching: find.textContaining('@retrotech'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('community-reply-like-$firstReplyKey')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Reply liked.'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Can you share photos?');
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const ValueKey('community-send-reply')));
     await tester.pumpAndSettle();
     expect(find.text('Can you share photos?'), findsOneWidget);
+    expect(find.text('Now'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Market'));
@@ -418,6 +476,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Can you send more photos?'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('chat-product-card-buy-now')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byIcon(Icons.more_horiz_rounded));
     await tester.pumpAndSettle();
@@ -564,7 +626,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Gaming').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Used - Excellent'));
+    await tester.ensureVisible(find.text('Used - Good').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Used - Good').last);
     await tester.pumpAndSettle();
@@ -651,10 +713,20 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('payment-logo-visa')), findsOneWidget);
+    expect(find.byKey(ValueKey('payment-logo-apple-pay')), findsOneWidget);
+    expect(find.byKey(ValueKey('payment-logo-tng')), findsOneWidget);
+    expect(find.byKey(ValueKey('payment-logo-bank')), findsOneWidget);
+    expect(find.text('VISA'), findsNothing);
+    expect(find.text('Pay'), findsNothing);
+    expect(find.text('TnG'), findsNothing);
+    expect(find.text('Bank'), findsNothing);
+
     await tester.tap(find.text('Apple Pay'));
     await tester.pumpAndSettle();
     expect(store.selectedPaymentMethod.title, 'Apple Pay');
-    expect(find.byIcon(Icons.radio_button_checked_rounded), findsOneWidget);
+    expect(find.text('Confirm with device passcode'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -685,16 +757,259 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('Apple Pay'), findsOneWidget);
+    expect(find.text('Buyer Protection'), findsNothing);
+    expect(find.text('Protection Fee'), findsNothing);
 
     await tester.tap(find.text('Pay Securely'));
     await tester.pumpAndSettle();
     expect(store.orders, hasLength(1));
+    expect(store.orders.single.total, seedListings.first.price + 35);
     expect(find.text('Order Confirmed'), findsOneWidget);
-    expect(find.textContaining('Apple Pay'), findsOneWidget);
+    expect(
+      find.text('Payment completed. The seller has been notified.'),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt Summary'), findsOneWidget);
+    expect(find.text('#${store.orders.single.id}'), findsOneWidget);
+    expect(find.text('Next Steps'), findsOneWidget);
+    expect(find.text('Preparing Shipment'), findsOneWidget);
+    expect(find.textContaining('Apple Pay'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.text('Track Order'),
+      90,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Track Order'));
     await tester.pumpAndSettle();
     expect(find.text('Order Detail'), findsOneWidget);
+  });
+
+  testWidgets('delivery address lookup suggestion saves checkout address', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = testStore();
+    await store.load();
+    setPhoneSize(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: DeliveryAddressScreen(store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Use current'), findsOneWidget);
+    expect(find.text('No delivery address selected'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'KLCC, 50088'),
+      'KLCC',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('KLCC, Jalan Ampang'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Recipient name'),
+      'Guest Buyer',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save Address'));
+    await tester.pumpAndSettle();
+
+    expect(store.selectedDeliveryAddress.recipient, 'Guest Buyer');
+    expect(store.selectedDeliveryAddress.line1, 'Kuala Lumpur City Centre');
+    expect(store.selectedDeliveryAddress.postcode, '50088');
+  });
+
+  testWidgets('legacy seed delivery address loads as empty address', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'delivery_address': const DeliveryAddress(
+        recipient: 'Legacy Buyer',
+        phone: '+60 12-345 6789',
+        line1: 'Legacy Street',
+        line2: '',
+        city: 'Kuala Lumpur',
+        state: 'Wilayah Persekutuan',
+        postcode: '50480',
+        country: 'Malaysia',
+        note: 'Leave with reception if unavailable.',
+        latitude: 3.1579,
+        longitude: 101.7116,
+        accuracyMeters: null,
+      ).encode(),
+    });
+    final store = testStore();
+    await store.load();
+
+    expect(store.selectedDeliveryAddress.isEmpty, isTrue);
+    expect(
+      store.selectedDeliveryAddress.checkoutSummary,
+      'No delivery address selected',
+    );
+  });
+
+  testWidgets('profile dashboard opens delivery address management', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = testStore();
+    await store.load();
+    setPhoneSize(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: AccountProfileScreen(store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Delivery Address'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save Address'), findsOneWidget);
+  });
+
+  testWidgets('product detail buy now opens checkout before creating order', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = testStore();
+    await store.load();
+    setPhoneSize(tester);
+    final ipod = seedListings.firstWhere((item) => item.id == 'ipod-classic');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        onGenerateRoute: (settings) {
+          if (settings.name == '/checkout') {
+            return MaterialPageRoute<void>(
+              builder: (_) => CheckoutScreen(
+                store: store,
+                listing: settings.arguments as Listing?,
+              ),
+              settings: settings,
+            );
+          }
+          if (settings.name == '/order-confirmed') {
+            return MaterialPageRoute<void>(
+              builder: (_) => OrderConfirmationScreen(
+                store: store,
+                order: settings.arguments as OrderRecord?,
+              ),
+              settings: settings,
+            );
+          }
+          return null;
+        },
+        home: ProductDetailScreen(
+          store: store,
+          listing: ipod,
+          videoPlayerBuilder: (_) => FakeMultimediaPlayer(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('product-detail-buy-now')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.text(ipod.shortTitle), findsOneWidget);
+    expect(store.orders, isEmpty);
+
+    await tester.tap(find.text('Pay Securely'));
+    await tester.pumpAndSettle();
+
+    expect(store.orders, hasLength(1));
+    expect(store.orders.single.listingId, ipod.id);
+    expect(find.text('Order Confirmed'), findsOneWidget);
+  });
+
+  testWidgets('product detail seller chat icon opens listing chat', (
+    WidgetTester tester,
+  ) async {
+    final store = testStore();
+    setPhoneSize(tester);
+    final ipod = seedListings.firstWhere((item) => item.id == 'ipod-classic');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        onGenerateRoute: (settings) {
+          if (settings.name == '/chat') {
+            return MaterialPageRoute<void>(
+              builder: (_) =>
+                  ChatThreadScreen(listing: settings.arguments as Listing?),
+              settings: settings,
+            );
+          }
+          return null;
+        },
+        home: ProductDetailScreen(
+          store: store,
+          listing: ipod,
+          videoPlayerBuilder: (_) => FakeMultimediaPlayer(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final contactButton = find.byKey(
+      const ValueKey('product-detail-contact-seller'),
+    );
+    await tester.ensureVisible(contactButton);
+    await tester.pumpAndSettle();
+    await tester.tap(contactButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text(ipod.seller), findsOneWidget);
+    expect(
+      find.text('Hi! Thanks for your interest in the ${ipod.title}.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('chat product card buy now opens checkout for that listing', (
+    WidgetTester tester,
+  ) async {
+    final store = testStore();
+    setPhoneSize(tester);
+    final walkman = seedListings.firstWhere((item) => item.id == 'walkman');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        onGenerateRoute: (settings) {
+          if (settings.name == '/checkout') {
+            return MaterialPageRoute<void>(
+              builder: (_) => CheckoutScreen(
+                store: store,
+                listing: settings.arguments as Listing?,
+              ),
+              settings: settings,
+            );
+          }
+          return null;
+        },
+        home: ChatThreadScreen(listing: walkman),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('chat-product-card-buy-now')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.text(walkman.shortTitle), findsOneWidget);
+    expect(find.text(walkman.priceLabel), findsWidgets);
+    expect(store.orders, isEmpty);
   });
 
   testWidgets('profile saved items and seller follow use store state', (
@@ -714,6 +1029,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Saved Items'), findsOneWidget);
+    expect(find.text('Delivery Address'), findsOneWidget);
     expect(store.savedListings, hasLength(1));
 
     await tester.pumpWidget(
@@ -865,7 +1181,11 @@ void main() {
     expect(find.byKey(const ValueKey('product-gallery-dot-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('product-gallery-dot-2')), findsOneWidget);
     expect(find.byKey(const ValueKey('product-gallery-dot-3')), findsOneWidget);
-    expect(find.text('Contact Seller'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('product-detail-contact-seller')),
+      findsOneWidget,
+    );
+    expect(find.text('Buy Now'), findsOneWidget);
     expect(
       tester.getSize(find.byKey(const ValueKey('product-gallery-dot-0'))).width,
       20,
@@ -983,7 +1303,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Contact Seller'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('product-detail-contact-seller')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('product-detail-buy-now')),
+        findsOneWidget,
+      );
     }
   });
 

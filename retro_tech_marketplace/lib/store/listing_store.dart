@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/listing_repository.dart';
+import '../models/delivery_address.dart';
 import '../models/listing.dart';
 import '../models/order_record.dart';
 import '../models/payment_method.dart';
@@ -17,6 +18,7 @@ class ListingStore extends ChangeNotifier {
   final List<OrderRecord> _orders = [];
   final Set<String> _followedSellers = {};
   UserProfile _profile = UserProfile.defaults;
+  DeliveryAddress _deliveryAddress = DeliveryAddress.defaults;
   DemoAuthProvider? _demoAuthProvider;
   String _selectedPaymentMethodId = PaymentMethodOption.visa.id;
   bool _notifications = true;
@@ -24,6 +26,7 @@ class ListingStore extends ChangeNotifier {
   bool _loaded = false;
 
   static const _selectedPaymentKey = 'selected_payment_method';
+  static const _deliveryAddressKey = 'delivery_address';
   static const _notificationsKey = 'settings_notifications';
   static const _privacyKey = 'settings_privacy';
 
@@ -33,6 +36,7 @@ class ListingStore extends ChangeNotifier {
       .toList(growable: false);
   List<OrderRecord> get orders => List.unmodifiable(_orders);
   UserProfile get profile => _profile;
+  DeliveryAddress get selectedDeliveryAddress => _deliveryAddress;
   DemoAuthProvider? get demoAuthProvider => _demoAuthProvider;
   bool get isDemoAuthenticated => _demoAuthProvider != null;
   PaymentMethodOption get selectedPaymentMethod =>
@@ -64,6 +68,18 @@ class ListingStore extends ChangeNotifier {
       ..addAll(followedSellers);
     _selectedPaymentMethodId =
         prefs.getString(_selectedPaymentKey) ?? PaymentMethodOption.visa.id;
+    final savedAddress = prefs.getString(_deliveryAddressKey);
+    if (savedAddress == null) {
+      _deliveryAddress = DeliveryAddress.defaults;
+    } else {
+      final address = DeliveryAddress.decode(savedAddress);
+      if (address.isLegacySeedAddress) {
+        _deliveryAddress = DeliveryAddress.defaults;
+        await prefs.remove(_deliveryAddressKey);
+      } else {
+        _deliveryAddress = address;
+      }
+    }
     _demoAuthProvider = DemoAuthService.providerFromValue(
       prefs.getString(DemoAuthService.providerKey),
     );
@@ -175,7 +191,7 @@ class ListingStore extends ChangeNotifier {
       imageAsset: listing.imageAsset,
       itemPrice: listing.price,
       shipping: 35,
-      protectionFee: 15,
+      protectionFee: 0,
       paymentMethodId: selectedPaymentMethod.id,
       paymentMethodTitle: selectedPaymentMethod.title,
       status: 'Paid',
@@ -191,6 +207,13 @@ class ListingStore extends ChangeNotifier {
     _selectedPaymentMethodId = PaymentMethodOption.byId(methodId).id;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_selectedPaymentKey, _selectedPaymentMethodId);
+    notifyListeners();
+  }
+
+  Future<void> saveDeliveryAddress(DeliveryAddress address) async {
+    _deliveryAddress = address;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_deliveryAddressKey, address.encode());
     notifyListeners();
   }
 

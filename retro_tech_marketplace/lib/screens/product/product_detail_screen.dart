@@ -90,20 +90,120 @@ class ProductDetailScreen extends StatelessWidget {
                   ],
                 ),
                 Positioned(
-                  left: metrics.pagePadding + 10,
-                  right: metrics.pagePadding + 10,
-                  bottom: 10 + bottomPadding,
-                  child: LiquidButton(
-                    label: 'Contact Seller',
-                    icon: Icons.chat_bubble_outline_rounded,
-                    height: metrics.compact ? 54 : 60,
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/chat', arguments: item),
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: EdgeInsets.fromLTRB(
+                      metrics.pagePadding + 10,
+                      12,
+                      metrics.pagePadding + 10,
+                      10 + bottomPadding,
+                    ),
+                    child: _PrimaryActionButton(
+                      key: const ValueKey('product-detail-buy-now'),
+                      label: 'Buy Now',
+                      icon: Icons.shopping_bag_outlined,
+                      height: metrics.compact ? 54 : 60,
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '/checkout',
+                        arguments: item,
+                      ),
+                    ),
                   ),
                 ),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryActionButton extends StatelessWidget {
+  const _PrimaryActionButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.height,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final double height;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = height < 56;
+    final iconSize = compact ? 18.0 : 20.0;
+    final labelSideReserve = iconSize + (compact ? 7.0 : 9.0);
+
+    return LiquidPressable(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(999),
+      glowColor: AppTheme.red,
+      child: Container(
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.red.withValues(alpha: 0.94), AppTheme.red],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.red.withValues(alpha: 0.34),
+              offset: const Offset(0, 10),
+              blurRadius: 24,
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final maxLabelWidth =
+                      (constraints.maxWidth - 2 * labelSideReserve)
+                          .clamp(24.0, constraints.maxWidth)
+                          .toDouble();
+
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxLabelWidth),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: compact ? 16 : 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              child: Center(
+                child: Icon(icon, color: Colors.white, size: iconSize),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -577,14 +677,14 @@ class ProductDetailPanel extends StatelessWidget {
                   ],
                 ),
               ),
+              SizedBox(width: metrics.gutter),
               CircleGlassButton(
-                icon: Icons.more_horiz_rounded,
+                key: const ValueKey('product-detail-contact-seller'),
+                icon: Icons.chat_bubble_outline_rounded,
                 size: 42,
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  '/seller',
-                  arguments: item.seller,
-                ),
+                color: AppTheme.blue,
+                onTap: () =>
+                    Navigator.pushNamed(context, '/chat', arguments: item),
               ),
             ],
           ),

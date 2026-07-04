@@ -270,6 +270,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _segment = 0;
   int _communityFeed = 0;
+  final Set<_CommunityPost> _likedCommunityPosts = <_CommunityPost>{};
 
   @override
   Widget build(BuildContext context) {
@@ -444,14 +445,27 @@ class _HomeScreenState extends State<HomeScreen> {
           time: post.time,
           text: post.text,
           asset: post.asset,
-          likes: post.likes,
+          likes: post.likes + (_likedCommunityPosts.contains(post) ? 1 : 0),
           replies: post.replies,
+          liked: _likedCommunityPosts.contains(post),
           sourceLabel: _communityFeed == 0
               ? 'For you'
               : 'Following ${post.handle}',
+          onReply: () => _openCommunityPost(context, post),
+          onLike: () => _toggleCommunityPostLike(post),
           onTap: () => _openCommunityPost(context, post),
         ),
     ];
+  }
+
+  void _toggleCommunityPostLike(_CommunityPost post) {
+    setState(() {
+      if (_likedCommunityPosts.contains(post)) {
+        _likedCommunityPosts.remove(post);
+      } else {
+        _likedCommunityPosts.add(post);
+      }
+    });
   }
 
   void _openCommunityPost(BuildContext context, _CommunityPost post) {
@@ -461,7 +475,20 @@ class _HomeScreenState extends State<HomeScreen> {
         transitionDuration: const Duration(milliseconds: 320),
         reverseTransitionDuration: const Duration(milliseconds: 240),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            _CommunityThreadScreen(post: post),
+            _CommunityThreadScreen(
+              post: post,
+              initiallyLiked: _likedCommunityPosts.contains(post),
+              onLikeChanged: (liked) {
+                if (!mounted) return;
+                setState(() {
+                  if (liked) {
+                    _likedCommunityPosts.add(post);
+                  } else {
+                    _likedCommunityPosts.remove(post);
+                  }
+                });
+              },
+            ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
@@ -521,6 +548,9 @@ class _CommunityReply {
   final String text;
   final String asset;
 }
+
+String _communityReplyKey(_CommunityReply reply) =>
+    '${reply.user}|${reply.handle}|${reply.time}|${reply.text}';
 
 const _communityPosts = [
   _CommunityPost(
@@ -604,9 +634,15 @@ const _communityPosts = [
 ];
 
 class _CommunityThreadScreen extends StatefulWidget {
-  const _CommunityThreadScreen({required this.post});
+  const _CommunityThreadScreen({
+    required this.post,
+    required this.initiallyLiked,
+    required this.onLikeChanged,
+  });
 
   final _CommunityPost post;
+  final bool initiallyLiked;
+  final ValueChanged<bool> onLikeChanged;
 
   @override
   State<_CommunityThreadScreen> createState() => _CommunityThreadScreenState();
@@ -616,7 +652,14 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _replyFocusNode = FocusNode();
   late final List<_CommunityReply> _replies = [...widget.post.replyItems];
-  bool _liked = false;
+  final Set<_CommunityReply> _likedReplies = <_CommunityReply>{};
+  late bool _liked;
+
+  @override
+  void initState() {
+    super.initState();
+    _liked = widget.initiallyLiked;
+  }
 
   @override
   void dispose() {
@@ -627,11 +670,16 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
 
   void _toggleLike() {
     setState(() => _liked = !_liked);
+    widget.onLikeChanged(_liked);
   }
 
   void _sendReply() {
     final text = _replyController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      _focusReplyInput();
+      showAppSnackBar(context, 'Write a reply first.');
+      return;
+    }
     setState(() {
       _replies.insert(
         0,
@@ -649,6 +697,29 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
 
   void _focusReplyInput() {
     _replyFocusNode.requestFocus();
+  }
+
+  void _replyTo(_CommunityReply reply) {
+    final prefix = '${reply.handle} ';
+    final current = _replyController.text.trimLeft();
+    final nextText = current.startsWith(prefix) ? current : '$prefix$current';
+    _replyController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
+    _focusReplyInput();
+  }
+
+  void _toggleReplyLike(_CommunityReply reply) {
+    final liked = !_likedReplies.contains(reply);
+    setState(() {
+      if (liked) {
+        _likedReplies.add(reply);
+      } else {
+        _likedReplies.remove(reply);
+      }
+    });
+    showAppSnackBar(context, liked ? 'Reply liked.' : 'Reply unliked.');
   }
 
   @override
@@ -717,7 +788,13 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
                       ),
                       SizedBox(height: 4),
                       for (final reply in _replies)
-                        _CommunityReplyTile(reply: reply),
+                        _CommunityReplyTile(
+                          key: ObjectKey(reply),
+                          reply: reply,
+                          liked: _likedReplies.contains(reply),
+                          onReply: () => _replyTo(reply),
+                          onLike: () => _toggleReplyLike(reply),
+                        ),
                     ],
                   ),
                 ),
@@ -763,6 +840,7 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
                     ),
                   ),
                   CircleGlassButton(
+                    key: const ValueKey('community-send-reply'),
                     icon: Icons.arrow_upward_rounded,
                     color: AppTheme.blue,
                     size: 40,
@@ -810,8 +888,15 @@ class _CommunityPostBody extends StatelessWidget {
             context,
             icon: Icons.more_horiz_rounded,
             title: 'Post options',
-            body:
-                'Saving, reporting, and muting community posts are not connected yet. You can still like or reply in this demo thread.',
+            body: 'Copy this post text so you can share or save it.',
+            actionLabel: 'Copy post',
+            onAction: () {
+              copyShareText(
+                context,
+                label: 'Post',
+                text: '${post.user}: ${post.text}',
+              );
+            },
           ),
         ),
         SizedBox(height: 16),
@@ -838,6 +923,7 @@ class _CommunityPostBody extends StatelessWidget {
         Row(
           children: [
             _CommunityActionButton(
+              key: const ValueKey('community-post-reply'),
               icon: Icons.chat_bubble_outline_rounded,
               label: '$replyCount',
               color: AppTheme.blue,
@@ -845,6 +931,7 @@ class _CommunityPostBody extends StatelessWidget {
             ),
             SizedBox(width: 16),
             _CommunityActionButton(
+              key: const ValueKey('community-post-like'),
               icon: liked
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
@@ -861,12 +948,22 @@ class _CommunityPostBody extends StatelessWidget {
 }
 
 class _CommunityReplyTile extends StatelessWidget {
-  const _CommunityReplyTile({required this.reply});
+  const _CommunityReplyTile({
+    super.key,
+    required this.reply,
+    required this.liked,
+    required this.onReply,
+    required this.onLike,
+  });
 
   final _CommunityReply reply;
+  final bool liked;
+  final VoidCallback onReply;
+  final VoidCallback onLike;
 
   @override
   Widget build(BuildContext context) {
+    final key = _communityReplyKey(reply);
     return Padding(
       padding: EdgeInsets.only(top: 14),
       child: Row(
@@ -908,18 +1005,20 @@ class _CommunityReplyTile extends StatelessWidget {
                 Row(
                   children: [
                     _CommunityActionButton(
+                      key: ValueKey('community-reply-reply-$key'),
                       icon: Icons.chat_bubble_outline_rounded,
                       color: AppTheme.blue,
+                      onTap: onReply,
                     ),
                     SizedBox(width: 10),
                     _CommunityActionButton(
-                      icon: Icons.favorite_border_rounded,
+                      key: ValueKey('community-reply-like-$key'),
+                      icon: liked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
                       color: AppTheme.red,
-                    ),
-                    SizedBox(width: 10),
-                    _CommunityActionButton(
-                      icon: Icons.repeat_rounded,
-                      color: AppTheme.muted,
+                      active: liked,
+                      onTap: onLike,
                     ),
                   ],
                 ),
@@ -1072,6 +1171,7 @@ class _CommunityMetaLine extends StatelessWidget {
 
 class _CommunityActionButton extends StatelessWidget {
   const _CommunityActionButton({
+    super.key,
     required this.icon,
     this.label,
     required this.color,
