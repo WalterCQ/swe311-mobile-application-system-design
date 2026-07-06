@@ -1,6 +1,8 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../models/chat_message.dart';
+import '../models/community_record.dart';
 import '../models/listing.dart';
 import '../models/order_record.dart';
 import '../models/user_profile.dart';
@@ -8,12 +10,17 @@ import '../store/seed_data.dart';
 
 class ListingRepository {
   static const _databaseName = 'retro_tech_marketplace.db';
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
   static const _listingsTable = 'listings';
   static const _profileTable = 'profile';
   static const _savedItemsTable = 'saved_items';
   static const _ordersTable = 'orders';
   static const _sellerFollowsTable = 'seller_follows';
+  static const _chatMessagesTable = 'chat_messages';
+  static const _chatConversationStatesTable = 'chat_conversation_states';
+  static const _communityPostLikesTable = 'community_post_likes';
+  static const _communityRepliesTable = 'community_replies';
+  static const _communityReplyLikesTable = 'community_reply_likes';
 
   Database? _database;
 
@@ -47,6 +54,9 @@ class ListingRepository {
     if (oldVersion < 2) {
       await _createFeatureTables(db);
       await _ensureDefaultProfile(db);
+    }
+    if (oldVersion < 3) {
+      await _createFeatureTables(db);
     }
   }
 
@@ -121,6 +131,52 @@ class ListingRepository {
       CREATE TABLE IF NOT EXISTS $_sellerFollowsTable (
         seller TEXT PRIMARY KEY,
         followedAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_chatMessagesTable (
+        id TEXT PRIMARY KEY,
+        conversationId TEXT NOT NULL,
+        sellerName TEXT NOT NULL,
+        listingId TEXT,
+        text TEXT NOT NULL,
+        mine INTEGER NOT NULL,
+        imagePath TEXT,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_chatConversationStatesTable (
+        conversationId TEXT PRIMARY KEY,
+        sellerName TEXT NOT NULL,
+        listingId TEXT,
+        blocked INTEGER NOT NULL,
+        reported INTEGER NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_communityPostLikesTable (
+        postId TEXT PRIMARY KEY,
+        likedAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_communityRepliesTable (
+        id TEXT PRIMARY KEY,
+        postId TEXT NOT NULL,
+        user TEXT NOT NULL,
+        handle TEXT NOT NULL,
+        timeLabel TEXT NOT NULL,
+        text TEXT NOT NULL,
+        asset TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_communityReplyLikesTable (
+        replyId TEXT PRIMARY KEY,
+        likedAt TEXT NOT NULL
       )
     ''');
   }
@@ -239,6 +295,98 @@ class ListingRepository {
       _sellerFollowsTable,
       where: 'seller = ?',
       whereArgs: [seller],
+    );
+  }
+
+  Future<List<ChatMessage>> loadChatMessages() async {
+    final db = await _db;
+    final rows = await db.query(_chatMessagesTable, orderBy: 'createdAt ASC');
+    return rows.map(ChatMessage.fromMap).toList();
+  }
+
+  Future<void> addChatMessage(ChatMessage message) async {
+    final db = await _db;
+    await db.insert(
+      _chatMessagesTable,
+      message.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<ChatConversationState>> loadChatConversationStates() async {
+    final db = await _db;
+    final rows = await db.query(_chatConversationStatesTable);
+    return rows.map(ChatConversationState.fromMap).toList();
+  }
+
+  Future<void> saveChatConversationState(ChatConversationState state) async {
+    final db = await _db;
+    await db.insert(
+      _chatConversationStatesTable,
+      state.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Set<String>> loadCommunityPostLikeIds() async {
+    final db = await _db;
+    final rows = await db.query(_communityPostLikesTable);
+    return rows.map((row) => row['postId'] as String).toSet();
+  }
+
+  Future<void> setCommunityPostLiked(String postId, bool liked) async {
+    final db = await _db;
+    if (liked) {
+      await db.insert(_communityPostLikesTable, {
+        'postId': postId,
+        'likedAt': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+    await db.delete(
+      _communityPostLikesTable,
+      where: 'postId = ?',
+      whereArgs: [postId],
+    );
+  }
+
+  Future<List<CommunityReplyRecord>> loadCommunityReplies() async {
+    final db = await _db;
+    final rows = await db.query(
+      _communityRepliesTable,
+      orderBy: 'createdAt DESC',
+    );
+    return rows.map(CommunityReplyRecord.fromMap).toList();
+  }
+
+  Future<void> addCommunityReply(CommunityReplyRecord reply) async {
+    final db = await _db;
+    await db.insert(
+      _communityRepliesTable,
+      reply.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Set<String>> loadCommunityReplyLikeIds() async {
+    final db = await _db;
+    final rows = await db.query(_communityReplyLikesTable);
+    return rows.map((row) => row['replyId'] as String).toSet();
+  }
+
+  Future<void> setCommunityReplyLiked(String replyId, bool liked) async {
+    final db = await _db;
+    if (liked) {
+      await db.insert(_communityReplyLikesTable, {
+        'replyId': replyId,
+        'likedAt': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+    await db.delete(
+      _communityReplyLikesTable,
+      where: 'replyId = ?',
+      whereArgs: [replyId],
     );
   }
 }

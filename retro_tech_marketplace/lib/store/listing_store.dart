@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/listing_repository.dart';
+import '../models/chat_message.dart';
+import '../models/community_record.dart';
 import '../models/delivery_address.dart';
 import '../models/listing.dart';
 import '../models/order_record.dart';
@@ -17,6 +19,11 @@ class ListingStore extends ChangeNotifier {
   final Set<String> _savedItemIds = {};
   final List<OrderRecord> _orders = [];
   final Set<String> _followedSellers = {};
+  final Map<String, List<ChatMessage>> _chatMessagesByConversation = {};
+  final Map<String, ChatConversationState> _chatConversationStates = {};
+  final Set<String> _likedCommunityPostIds = {};
+  final Map<String, List<CommunityReplyRecord>> _communityRepliesByPost = {};
+  final Set<String> _likedCommunityReplyIds = {};
   UserProfile _profile = UserProfile.defaults;
   DeliveryAddress _deliveryAddress = DeliveryAddress.defaults;
   DemoAuthProvider? _demoAuthProvider;
@@ -53,6 +60,11 @@ class ListingStore extends ChangeNotifier {
     final savedItemIds = await _repository.loadSavedItemIds();
     final orders = await _repository.loadOrders();
     final followedSellers = await _repository.loadFollowedSellers();
+    final chatMessages = await _repository.loadChatMessages();
+    final chatStates = await _repository.loadChatConversationStates();
+    final likedPostIds = await _repository.loadCommunityPostLikeIds();
+    final communityReplies = await _repository.loadCommunityReplies();
+    final likedReplyIds = await _repository.loadCommunityReplyLikeIds();
     _listings
       ..clear()
       ..addAll(listings);
@@ -66,6 +78,29 @@ class ListingStore extends ChangeNotifier {
     _followedSellers
       ..clear()
       ..addAll(followedSellers);
+    _chatMessagesByConversation.clear();
+    for (final message in chatMessages) {
+      _chatMessagesByConversation
+          .putIfAbsent(message.conversationId, () => <ChatMessage>[])
+          .add(message);
+    }
+    _chatConversationStates
+      ..clear()
+      ..addEntries(
+        chatStates.map((state) => MapEntry(state.conversationId, state)),
+      );
+    _likedCommunityPostIds
+      ..clear()
+      ..addAll(likedPostIds);
+    _communityRepliesByPost.clear();
+    for (final reply in communityReplies) {
+      _communityRepliesByPost
+          .putIfAbsent(reply.postId, () => <CommunityReplyRecord>[])
+          .add(reply);
+    }
+    _likedCommunityReplyIds
+      ..clear()
+      ..addAll(likedReplyIds);
     _selectedPaymentMethodId =
         prefs.getString(_selectedPaymentKey) ?? PaymentMethodOption.visa.id;
     final savedAddress = prefs.getString(_deliveryAddressKey);
@@ -127,6 +162,7 @@ class ListingStore extends ChangeNotifier {
   bool isSaved(String listingId) => _savedItemIds.contains(listingId);
 
   bool isFollowing(String seller) => _followedSellers.contains(seller);
+  int get followedSellerCount => _followedSellers.length;
 
   Future<void> add(Listing listing) async {
     await _repository.add(listing);
@@ -164,6 +200,51 @@ class ListingStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> signInWithLocalAccount({
+    required String identifier,
+    required String password,
+  }) async {
+    final profile = await DemoAuthService.validateLocalCredentials(
+      identifier,
+      password,
+    );
+    if (profile == null) return false;
+    await DemoAuthService.saveProvider(DemoAuthProvider.local);
+    await _repository.saveProfile(profile);
+    _demoAuthProvider = DemoAuthProvider.local;
+    _profile = profile;
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> registerLocalAccount({
+    required String displayName,
+    required String email,
+    required String password,
+  }) async {
+    final profile = await DemoAuthService.registerLocalAccount(
+      displayName: displayName,
+      email: email,
+      password: password,
+    );
+    await DemoAuthService.saveProvider(DemoAuthProvider.local);
+    await _repository.saveProfile(profile);
+    _demoAuthProvider = DemoAuthProvider.local;
+    _profile = profile;
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> resetLocalPassword({
+    required String identifier,
+    required String newPassword,
+  }) {
+    return DemoAuthService.resetLocalPassword(
+      identifier: identifier,
+      newPassword: newPassword,
+    );
+  }
+
   Future<void> signOut() async {
     await DemoAuthService.clearProvider();
     _demoAuthProvider = null;
@@ -194,7 +275,7 @@ class ListingStore extends ChangeNotifier {
       protectionFee: 0,
       paymentMethodId: selectedPaymentMethod.id,
       paymentMethodTitle: selectedPaymentMethod.title,
-      status: 'Paid',
+      status: 'Placed',
       createdAt: now,
     );
     await _repository.addOrder(order);
@@ -238,6 +319,155 @@ class ListingStore extends ChangeNotifier {
       _followedSellers.add(seller);
     } else {
       _followedSellers.remove(seller);
+    }
+    notifyListeners();
+  }
+
+  int sellerOrderCount(String seller) {
+    return _orders.where((order) => order.seller == seller).length;
+  }
+
+  double sellerAverageRating(String seller) {
+    final sellerListings = bySeller(seller);
+    if (sellerListings.isEmpty) return 0;
+    final total = sellerListings.fold<double>(
+      0,
+      (sum, listing) => sum + listing.rating,
+    );
+    return total / sellerListings.length;
+  }
+
+  static String conversationIdFor({
+    Listing? listing,
+    required String sellerName,
+  }) {
+    if (listing != null) return 'listing:${listing.id}';
+    final normalized = sellerName.trim().toLowerCase().replaceAll(
+      RegExp(r'\s+'),
+      '-',
+    );
+    return 'seller:$normalized';
+  }
+
+  List<ChatMessage> chatMessagesFor(String conversationId) {
+    return List.unmodifiable(
+      _chatMessagesByConversation[conversationId] ?? const <ChatMessage>[],
+    );
+  }
+
+  ChatMessage? latestChatMessageFor(String conversationId) {
+    final messages = _chatMessagesByConversation[conversationId];
+    if (messages == null || messages.isEmpty) return null;
+    return messages.last;
+  }
+
+  ChatConversationState chatStateFor({
+    required String conversationId,
+    required String sellerName,
+    String? listingId,
+  }) {
+    return _chatConversationStates[conversationId] ??
+        ChatConversationState(
+          conversationId: conversationId,
+          sellerName: sellerName,
+          listingId: listingId,
+          blocked: false,
+          reported: false,
+          updatedAt: DateTime.now(),
+        );
+  }
+
+  Future<void> addChatMessage(ChatMessage message) async {
+    await _repository.addChatMessage(message);
+    _chatMessagesByConversation
+        .putIfAbsent(message.conversationId, () => <ChatMessage>[])
+        .add(message);
+    notifyListeners();
+  }
+
+  Future<void> setChatBlocked({
+    required String conversationId,
+    required String sellerName,
+    required bool blocked,
+    String? listingId,
+  }) async {
+    final current = chatStateFor(
+      conversationId: conversationId,
+      sellerName: sellerName,
+      listingId: listingId,
+    );
+    final next = current.copyWith(
+      sellerName: sellerName,
+      listingId: listingId,
+      blocked: blocked,
+      updatedAt: DateTime.now(),
+    );
+    await _repository.saveChatConversationState(next);
+    _chatConversationStates[conversationId] = next;
+    notifyListeners();
+  }
+
+  Future<void> markChatReported({
+    required String conversationId,
+    required String sellerName,
+    String? listingId,
+  }) async {
+    final current = chatStateFor(
+      conversationId: conversationId,
+      sellerName: sellerName,
+      listingId: listingId,
+    );
+    final next = current.copyWith(
+      sellerName: sellerName,
+      listingId: listingId,
+      reported: true,
+      updatedAt: DateTime.now(),
+    );
+    await _repository.saveChatConversationState(next);
+    _chatConversationStates[conversationId] = next;
+    notifyListeners();
+  }
+
+  bool isCommunityPostLiked(String postId) {
+    return _likedCommunityPostIds.contains(postId);
+  }
+
+  Future<void> toggleCommunityPostLike(String postId) async {
+    final liked = !_likedCommunityPostIds.contains(postId);
+    await _repository.setCommunityPostLiked(postId, liked);
+    if (liked) {
+      _likedCommunityPostIds.add(postId);
+    } else {
+      _likedCommunityPostIds.remove(postId);
+    }
+    notifyListeners();
+  }
+
+  List<CommunityReplyRecord> communityRepliesFor(String postId) {
+    return List.unmodifiable(
+      _communityRepliesByPost[postId] ?? const <CommunityReplyRecord>[],
+    );
+  }
+
+  Future<void> addCommunityReply(CommunityReplyRecord reply) async {
+    await _repository.addCommunityReply(reply);
+    _communityRepliesByPost
+        .putIfAbsent(reply.postId, () => <CommunityReplyRecord>[])
+        .insert(0, reply);
+    notifyListeners();
+  }
+
+  bool isCommunityReplyLiked(String replyId) {
+    return _likedCommunityReplyIds.contains(replyId);
+  }
+
+  Future<void> toggleCommunityReplyLike(String replyId) async {
+    final liked = !_likedCommunityReplyIds.contains(replyId);
+    await _repository.setCommunityReplyLiked(replyId, liked);
+    if (liked) {
+      _likedCommunityReplyIds.add(replyId);
+    } else {
+      _likedCommunityReplyIds.remove(replyId);
     }
     notifyListeners();
   }

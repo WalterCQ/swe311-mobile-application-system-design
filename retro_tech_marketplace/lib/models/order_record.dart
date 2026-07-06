@@ -59,7 +59,7 @@ class OrderRecord {
       protectionFee: (map['protectionFee'] as num).toDouble(),
       paymentMethodId: map['paymentMethodId'] as String,
       paymentMethodTitle: map['paymentMethodTitle'] as String,
-      status: map['status'] as String? ?? 'Paid',
+      status: map['status'] as String? ?? 'Placed',
       createdAt:
           DateTime.tryParse(map['createdAt'] as String? ?? '') ??
           DateTime.now(),
