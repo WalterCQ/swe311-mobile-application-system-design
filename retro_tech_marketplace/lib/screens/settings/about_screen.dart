@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../constants/assets.dart';
+import '../../store/listing_store.dart';
+import '../../store/seed_data.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/glass_scaffold.dart';
 import '../../widgets/image_cache.dart';
@@ -12,11 +14,21 @@ import '../../widgets/logo_mark.dart';
 import '../../widgets/navigation.dart';
 
 class AboutScreen extends StatelessWidget {
-  const AboutScreen({super.key});
+  const AboutScreen({super.key, this.store});
+
+  final ListingStore? store;
 
   @override
   Widget build(BuildContext context) {
     final metrics = ResponsiveMetrics.of(context);
+    final listings = store?.listings ?? seedListings;
+    final listingCount = listings.length;
+    final sellerCount = listings
+        .map((listing) => listing.seller)
+        .toSet()
+        .length;
+    final orderCount = store?.orders.length ?? 0;
+    final followCount = store?.followedSellerCount ?? 0;
     return GlassScaffold(
       includeSafeArea: false,
       background: const AboutBackground(),
@@ -200,29 +212,29 @@ class AboutScreen extends StatelessWidget {
                 return Row(
                   children: [
                     Number(
-                      '10K+',
-                      'Happy Buyers',
+                      '$listingCount',
+                      'Listings',
                       aboutRed,
                       width: numberWidth,
                     ),
                     SizedBox(width: gap),
                     Number(
-                      '5K+',
-                      'Verified Sellers',
+                      '$sellerCount',
+                      'Sellers',
                       aboutBlue,
                       width: numberWidth,
                     ),
                     SizedBox(width: gap),
                     Number(
-                      '50K+',
-                      'Products Sold',
+                      '$orderCount',
+                      'Orders',
                       aboutGreen,
                       width: numberWidth,
                     ),
                     SizedBox(width: gap),
                     Number(
-                      '100+',
-                      'Countries',
+                      '$followCount',
+                      'Follows',
                       aboutViolet,
                       width: numberWidth,
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/assets.dart';
 import '../constants/theme.dart';
 import 'aero_background.dart';
+import 'glass_card.dart';
 import 'liquid_button.dart';
 import 'navigation.dart';
 
@@ -107,6 +108,7 @@ class FormShell extends StatelessWidget {
                   trailing: title.contains('Edit')
                       ? Icons.visibility_outlined
                       : null,
+                  showTrailing: title.contains('Edit'),
                 ),
                 SizedBox(height: 22),
                 ...children,
@@ -161,6 +163,36 @@ class FormSection extends StatelessWidget {
             Text(subtitle!, style: AppTheme.body.copyWith(fontSize: 12)),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class GlassFormPanel extends StatelessWidget {
+  const GlassFormPanel({
+    super.key,
+    required this.children,
+    this.padding = const EdgeInsets.all(16),
+    this.margin,
+    this.radius = 28,
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? margin;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      margin: margin,
+      radius: radius,
+      padding: padding,
+      opacity: 0.24,
+      borderOpacity: 0.9,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
       ),
     );
   }

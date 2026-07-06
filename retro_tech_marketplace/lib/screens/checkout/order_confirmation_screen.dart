@@ -24,11 +24,7 @@ class OrderConfirmationScreen extends StatelessWidget {
         children: [
           Center(child: Text('RetroTech', style: AppTheme.h2)),
           SizedBox(height: 24),
-          _ConfirmationHero(),
-          SizedBox(height: 16),
-          _ReceiptSummaryCard(order: item),
-          SizedBox(height: 16),
-          _ConfirmationTimeline(),
+          _ConfirmationHero(order: item),
           SizedBox(height: 24),
           LiquidButton(
             label: 'Track Order',
@@ -53,7 +49,9 @@ class OrderConfirmationScreen extends StatelessWidget {
 }
 
 class _ConfirmationHero extends StatelessWidget {
-  const _ConfirmationHero();
+  const _ConfirmationHero({required this.order});
+
+  final OrderRecord order;
 
   @override
   Widget build(BuildContext context) {
@@ -80,258 +78,52 @@ class _ConfirmationHero extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Payment completed. The seller has been notified.',
+            'Order placed with selected payment method.',
             textAlign: TextAlign.center,
             style: AppTheme.body.copyWith(fontSize: 13),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReceiptSummaryCard extends StatelessWidget {
-  const _ReceiptSummaryCard({required this.order});
-
-  final OrderRecord order;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: EdgeInsets.all(18),
-      borderOpacity: 0.92,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Receipt Summary',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.h2.copyWith(fontSize: 16),
-                ),
-              ),
-              SizedBox(width: 12),
-              _StatusPill(label: order.status),
-            ],
-          ),
-          SizedBox(height: 14),
-          Text(
-            order.totalLabel,
-            style: AppTheme.h1.copyWith(fontSize: 30, color: AppTheme.blue),
-          ),
-          SizedBox(height: 4),
-          Text(
-            'Paid via ${order.paymentMethodTitle}',
-            style: AppTheme.body.copyWith(fontSize: 13),
-          ),
-          SizedBox(height: 16),
+          SizedBox(height: 18),
           Divider(color: AppTheme.line),
-          SizedBox(height: 12),
+          SizedBox(height: 14),
           Row(
             children: [
-              ProductImage(asset: order.imageAsset, width: 74, height: 74),
-              SizedBox(width: 14),
+              ProductImage(asset: order.imageAsset, width: 62, height: 62),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       order.listingTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     SizedBox(height: 4),
-                    Text('Seller: ${order.seller}', style: AppTheme.body),
+                    Text(
+                      'Order #${order.id}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.label,
+                    ),
+                    Text(
+                      'Selected ${order.paymentMethodTitle}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.body.copyWith(fontSize: 12),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           SizedBox(height: 16),
-          _ReceiptRow(
-            icon: Icons.confirmation_number_outlined,
-            title: 'Order number',
-            value: '#${order.id}',
-          ),
-          _ReceiptRow(
-            icon: Icons.credit_card_outlined,
-            title: 'Payment method',
-            value: order.paymentMethodTitle,
-          ),
-          _ReceiptRow(
-            icon: Icons.inventory_2_outlined,
-            title: 'Current status',
-            value: order.status,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.green.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.green.withValues(alpha: 0.22)),
-      ),
-      child: Text(
-        label,
-        style: AppTheme.label.copyWith(color: AppTheme.green, fontSize: 11),
-      ),
-    );
-  }
-}
-
-class _ReceiptRow extends StatelessWidget {
-  const _ReceiptRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(top: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: AppTheme.blue, size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(title, style: AppTheme.body.copyWith(fontSize: 13)),
-          ),
-          SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppTheme.ink,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConfirmationTimeline extends StatelessWidget {
-  const _ConfirmationTimeline();
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: EdgeInsets.fromLTRB(14, 16, 14, 14),
-      borderOpacity: 0.92,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Next Steps', style: AppTheme.h2.copyWith(fontSize: 16)),
-          SizedBox(height: 14),
-          Row(
-            children: [
-              _TimelineStep(
-                label: 'Paid',
-                icon: Icons.done_rounded,
-                complete: true,
-              ),
-              _TimelineConnector(complete: true),
-              _TimelineStep(
-                label: 'Seller Notified',
-                icon: Icons.notifications_rounded,
-                complete: true,
-              ),
-              _TimelineConnector(complete: false),
-              _TimelineStep(
-                label: 'Preparing Shipment',
-                icon: Icons.inventory_2_outlined,
-                complete: false,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineConnector extends StatelessWidget {
-  const _TimelineConnector({required this.complete});
-
-  final bool complete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 2,
-      margin: EdgeInsets.only(bottom: 28),
-      color: (complete ? AppTheme.blue : AppTheme.line).withValues(alpha: 0.82),
-    );
-  }
-}
-
-class _TimelineStep extends StatelessWidget {
-  const _TimelineStep({
-    required this.label,
-    required this.icon,
-    required this.complete,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool complete;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = complete ? AppTheme.blue : AppTheme.muted;
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: complete ? 0.14 : 0.08),
-              border: Border.all(color: color.withValues(alpha: 0.24)),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          SizedBox(height: 8),
           Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.body.copyWith(
-              fontSize: 10,
-              height: 1.16,
-              color: complete ? AppTheme.ink : AppTheme.muted,
-            ),
+            order.totalLabel,
+            style: AppTheme.h1.copyWith(fontSize: 30, color: AppTheme.blue),
           ),
         ],
       ),
@@ -429,10 +221,10 @@ class OrderDetailScreen extends StatelessWidget {
               SizedBox(height: 12),
               Row(
                 children: [
-                  _ProgressChip('Paid', Icons.done_rounded, true),
+                  _ProgressChip('Order Placed', Icons.done_rounded, true),
                   _ProgressChip(
-                    'Seller Notified',
-                    Icons.notifications_rounded,
+                    'Payment Selected',
+                    Icons.credit_card_rounded,
                     true,
                   ),
                   _ProgressChip('Preparing', Icons.inventory_2_outlined, false),
@@ -496,7 +288,7 @@ class _OrderCard extends StatelessWidget {
                   SizedBox(height: 4),
                   Text('Order #${order.id}', style: AppTheme.label),
                   Text(
-                    '${order.status} via ${order.paymentMethodTitle}',
+                    '${order.status} with ${order.paymentMethodTitle}',
                     style: AppTheme.body.copyWith(fontSize: 12),
                   ),
                 ],
@@ -545,7 +337,6 @@ class _ProgressChip extends StatelessWidget {
 
 OrderRecord _fallbackOrder(ListingStore store) {
   final listing = seedListings.first;
-  final method = store.selectedPaymentMethod;
   return OrderRecord(
     id: 'RT2048',
     listingId: listing.id,
@@ -554,10 +345,10 @@ OrderRecord _fallbackOrder(ListingStore store) {
     imageAsset: listing.imageAsset,
     itemPrice: listing.price,
     shipping: 35,
-    protectionFee: 15,
-    paymentMethodId: method.id,
-    paymentMethodTitle: method.title,
-    status: 'Paid',
+    protectionFee: 0,
+    paymentMethodId: 'missing',
+    paymentMethodTitle: 'Payment not selected',
+    status: 'Placed',
     createdAt: DateTime.now(),
   );
 }

@@ -23,6 +23,11 @@ class SellerProfileScreen extends StatelessWidget {
         final seller = sellerName ?? store.profile.sellerName;
         final activeListings = store.bySeller(seller);
         final following = store.isFollowing(seller);
+        final averageRating = store.sellerAverageRating(seller);
+        final sellerOrders = store.sellerOrderCount(seller);
+        final ratingLabel = averageRating == 0
+            ? 'No local rating yet'
+            : '${averageRating.toStringAsFixed(1)} star from listings';
         return GlassScaffold(
           child: ListView(
             padding: EdgeInsets.fromLTRB(22, 18, 22, 30),
@@ -42,12 +47,7 @@ class SellerProfileScreen extends StatelessWidget {
               Center(
                 child: Text(seller, style: AppTheme.h1.copyWith(fontSize: 26)),
               ),
-              Center(
-                child: Text(
-                  '4.9 star  |  Verified Seller',
-                  style: AppTheme.label,
-                ),
-              ),
+              Center(child: Text(ratingLabel, style: AppTheme.label)),
               SizedBox(height: 6),
               Center(
                 child: Text(
@@ -58,14 +58,22 @@ class SellerProfileScreen extends StatelessWidget {
               SizedBox(height: 22),
               Row(
                 children: [
-                  ProfileStat('128', 'Sold', Icons.shopping_bag_outlined),
                   ProfileStat(
-                    '98%',
-                    'Positive',
+                    '${activeListings.length}',
+                    'Listings',
+                    Icons.sell_outlined,
+                  ),
+                  ProfileStat(
+                    '$sellerOrders',
+                    'Orders',
                     Icons.favorite_rounded,
                     color: AppTheme.green,
                   ),
-                  ProfileStat('2h', 'Reply', Icons.chat_outlined),
+                  ProfileStat(
+                    following ? 'Yes' : 'No',
+                    'Followed',
+                    Icons.chat_outlined,
+                  ),
                 ],
               ),
               SizedBox(height: 18),

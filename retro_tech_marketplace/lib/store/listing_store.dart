@@ -27,7 +27,7 @@ class ListingStore extends ChangeNotifier {
   UserProfile _profile = UserProfile.defaults;
   DeliveryAddress _deliveryAddress = DeliveryAddress.defaults;
   DemoAuthProvider? _demoAuthProvider;
-  String _selectedPaymentMethodId = PaymentMethodOption.visa.id;
+  String? _selectedPaymentMethodId;
   bool _notifications = true;
   bool _privacy = true;
   bool _loaded = false;
@@ -46,8 +46,11 @@ class ListingStore extends ChangeNotifier {
   DeliveryAddress get selectedDeliveryAddress => _deliveryAddress;
   DemoAuthProvider? get demoAuthProvider => _demoAuthProvider;
   bool get isDemoAuthenticated => _demoAuthProvider != null;
-  PaymentMethodOption get selectedPaymentMethod =>
-      PaymentMethodOption.byId(_selectedPaymentMethodId);
+  PaymentMethodOption? get selectedPaymentMethod =>
+      _selectedPaymentMethodId == null
+      ? null
+      : PaymentMethodOption.byId(_selectedPaymentMethodId!);
+  bool get hasSelectedPaymentMethod => selectedPaymentMethod != null;
   bool get notifications => _notifications;
   bool get privacy => _privacy;
   bool get loaded => _loaded;
@@ -101,8 +104,12 @@ class ListingStore extends ChangeNotifier {
     _likedCommunityReplyIds
       ..clear()
       ..addAll(likedReplyIds);
+    final savedPaymentMethodId = prefs.getString(_selectedPaymentKey);
     _selectedPaymentMethodId =
-        prefs.getString(_selectedPaymentKey) ?? PaymentMethodOption.visa.id;
+        savedPaymentMethodId != null &&
+            PaymentMethodOption.byId(savedPaymentMethodId) != null
+        ? savedPaymentMethodId
+        : null;
     final savedAddress = prefs.getString(_deliveryAddressKey);
     if (savedAddress == null) {
       _deliveryAddress = DeliveryAddress.defaults;
@@ -263,6 +270,13 @@ class ListingStore extends ChangeNotifier {
   }
 
   Future<OrderRecord> createOrder(Listing listing) async {
+    final paymentMethod = selectedPaymentMethod;
+    if (_deliveryAddress.isEmpty) {
+      throw StateError('Delivery address is required before placing an order.');
+    }
+    if (paymentMethod == null) {
+      throw StateError('Payment method is required before placing an order.');
+    }
     final now = DateTime.now();
     final order = OrderRecord(
       id: 'RT${now.millisecondsSinceEpoch}',
@@ -273,8 +287,8 @@ class ListingStore extends ChangeNotifier {
       itemPrice: listing.price,
       shipping: 35,
       protectionFee: 0,
-      paymentMethodId: selectedPaymentMethod.id,
-      paymentMethodTitle: selectedPaymentMethod.title,
+      paymentMethodId: paymentMethod.id,
+      paymentMethodTitle: paymentMethod.title,
       status: 'Placed',
       createdAt: now,
     );
@@ -285,9 +299,13 @@ class ListingStore extends ChangeNotifier {
   }
 
   Future<void> selectPaymentMethod(String methodId) async {
-    _selectedPaymentMethodId = PaymentMethodOption.byId(methodId).id;
+    final method = PaymentMethodOption.byId(methodId);
+    if (method == null) {
+      throw ArgumentError.value(methodId, 'methodId', 'Unknown payment method');
+    }
+    _selectedPaymentMethodId = method.id;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_selectedPaymentKey, _selectedPaymentMethodId);
+    await prefs.setString(_selectedPaymentKey, _selectedPaymentMethodId!);
     notifyListeners();
   }
 

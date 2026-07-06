@@ -256,7 +256,8 @@ class GlassListRow extends StatelessWidget {
               )
             else if (value != null)
               Text(value!, style: AppTheme.body.copyWith(fontSize: 12)),
-            Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
+            if (onTap != null)
+              Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
           ],
         ),
       ),

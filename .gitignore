@@ -1,9 +1,23 @@
 .DS_Store
+.flutter-plugins-dependencies
+.idea/
+*.iml
+/tmp/
 
 # Coursework report artifacts are kept out of the public repository.
 *报告*.docx
 *报告*.pdf
+*_Report.docx
+*_Report.pdf
 build_chinese_report.py
 report_assets/
 report_rendered/
+report_rendered*/
 report_diagrams/
+
+# Flutter platform folders generated accidentally at the repository root.
+/android/
+/ios/
+/linux/
+/macos/
+/windows/

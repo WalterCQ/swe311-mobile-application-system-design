@@ -26,8 +26,8 @@ class AppUpdateInfo {
 class UpdateService {
   const UpdateService();
 
-  static const fallbackVersion = '1.1.2';
-  static const repository = 'WalterCQ/swe311-mobile-application-system-design';
+  static const fallbackVersion = '1.1.6';
+  static const repository = 'WalterCQ/SWE311-retro-tech-marketplace';
   static const releasePageUrl =
       'https://github.com/$repository/releases/latest';
 

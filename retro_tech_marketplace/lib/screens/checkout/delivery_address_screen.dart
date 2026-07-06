@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -59,18 +62,12 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
   LatLng? _pinnedLocation;
   double? _accuracyMeters;
   String? _locationStatus;
+  String? _addressSearchStatus;
   bool _locating = false;
+  bool _searchingAddress = false;
+  List<_AddressSearchResult> _addressResults = [];
 
   bool _submitted = false;
-
-  List<_AddressSuggestion> get _matches {
-    final query = _search.text.trim().toLowerCase();
-    if (query.isEmpty) return _suggestions.take(2).toList(growable: false);
-    return _suggestions
-        .where((suggestion) => suggestion.searchText.contains(query))
-        .take(3)
-        .toList(growable: false);
-  }
 
   @override
   void initState() {
@@ -80,7 +77,6 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       _pinnedLocation = LatLng(address.latitude!, address.longitude!);
       _accuracyMeters = address.accuracyMeters;
     }
-    _search.addListener(() => setState(() {}));
   }
 
   @override
@@ -124,127 +120,141 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
                 GlassInput(
                   controller: _search,
                   label: 'Find Address',
-                  helperText: 'Start with building, street, or postcode.',
+                  helperText: 'Search a building, street, or postcode.',
                   hint: 'KLCC, 50088',
                   icon: Icons.search_rounded,
                   textInputAction: TextInputAction.search,
                 ),
                 SizedBox(height: 12),
-                ..._matches.map(
-                  (suggestion) => _AddressSuggestionTile(
-                    suggestion: suggestion,
-                    onTap: () => _useSuggestion(suggestion),
-                  ),
+                LiquidButton(
+                  label: _searchingAddress ? 'Searching' : 'Search Address',
+                  icon: Icons.manage_search_rounded,
+                  onPressed: _searchingAddress ? null : _searchAddress,
                 ),
+                if (_addressSearchStatus != null) ...[
+                  SizedBox(height: 10),
+                  Text(
+                    _addressSearchStatus!,
+                    style: AppTheme.body.copyWith(fontSize: 12),
+                  ),
+                ],
+                if (_addressResults.isNotEmpty) ...[
+                  SizedBox(height: 12),
+                  ..._addressResults.map(
+                    (result) => _AddressResultTile(
+                      result: result,
+                      onTap: () => _useSearchResult(result),
+                    ),
+                  ),
+                ],
                 SizedBox(height: 12),
                 _AddressPreview(address: _currentAddress()),
                 SizedBox(height: 20),
-                Text('Recipient', style: AppTheme.h2.copyWith(fontSize: 16)),
-                SizedBox(height: 10),
-                GlassInput(
-                  controller: _recipient,
-                  label: 'Full Name',
-                  hint: 'Recipient name',
-                  icon: Icons.person_outline_rounded,
-                  requiredField: true,
-                  textInputAction: TextInputAction.next,
-                  validator: _required('Enter a recipient name.'),
-                ),
-                SizedBox(height: 12),
-                GlassInput(
-                  controller: _phone,
-                  label: 'Phone Number',
-                  hint: '+60 12-345 6789',
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
-                ),
-                SizedBox(height: 20),
-                Text(
-                  'Address Details',
-                  style: AppTheme.h2.copyWith(fontSize: 16),
-                ),
-                SizedBox(height: 10),
-                GlassInput(
-                  controller: _line1,
-                  label: 'Address Line 1',
-                  hint: 'Street address or building name',
-                  icon: Icons.home_outlined,
-                  requiredField: true,
-                  textInputAction: TextInputAction.next,
-                  validator: _required('Enter an address line.'),
-                ),
-                SizedBox(height: 12),
-                GlassInput(
-                  controller: _line2,
-                  label: 'Address Line 2',
-                  hint: 'Apartment, suite, floor',
-                  icon: Icons.apartment_rounded,
-                  textInputAction: TextInputAction.next,
-                ),
-                SizedBox(height: 12),
-                Row(
+                GlassFormPanel(
                   children: [
-                    Expanded(
-                      child: GlassInput(
-                        controller: _postcode,
-                        label: 'Postcode',
-                        hint: '50480',
-                        icon: Icons.pin_drop_outlined,
-                        requiredField: true,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                        validator: _required('Enter a postcode.'),
-                      ),
+                    FormSection(title: 'Recipient'),
+                    GlassInput(
+                      controller: _recipient,
+                      label: 'Full Name',
+                      hint: 'Recipient name',
+                      icon: Icons.person_outline_rounded,
+                      requiredField: true,
+                      textInputAction: TextInputAction.next,
+                      validator: _required('Enter a recipient name.'),
                     ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: GlassInput(
-                        controller: _city,
-                        label: 'City',
-                        hint: 'Kuala Lumpur',
-                        icon: Icons.location_city_outlined,
-                        requiredField: true,
-                        textInputAction: TextInputAction.next,
-                        validator: _required('Enter a city.'),
-                      ),
+                    SizedBox(height: 12),
+                    GlassInput(
+                      controller: _phone,
+                      label: 'Phone Number',
+                      hint: '+60 12-345 6789',
+                      icon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    SizedBox(height: 18),
+                    FormSection(title: 'Address Details'),
+                    GlassInput(
+                      controller: _line1,
+                      label: 'Address Line 1',
+                      hint: 'Street address or building name',
+                      icon: Icons.home_outlined,
+                      requiredField: true,
+                      textInputAction: TextInputAction.next,
+                      validator: _required('Enter an address line.'),
+                    ),
+                    SizedBox(height: 12),
+                    GlassInput(
+                      controller: _line2,
+                      label: 'Address Line 2',
+                      hint: 'Apartment, suite, floor',
+                      icon: Icons.apartment_rounded,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GlassInput(
+                            controller: _postcode,
+                            label: 'Postcode',
+                            hint: '50480',
+                            icon: Icons.pin_drop_outlined,
+                            requiredField: true,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            validator: _required('Enter a postcode.'),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: GlassInput(
+                            controller: _city,
+                            label: 'City',
+                            hint: 'Kuala Lumpur',
+                            icon: Icons.location_city_outlined,
+                            requiredField: true,
+                            textInputAction: TextInputAction.next,
+                            validator: _required('Enter a city.'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GlassInput(
+                            controller: _state,
+                            label: 'State',
+                            hint: 'Wilayah Persekutuan',
+                            icon: Icons.map_outlined,
+                            textInputAction: TextInputAction.next,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: GlassInput(
+                            controller: _country,
+                            label: 'Country',
+                            hint: 'Malaysia',
+                            icon: Icons.public_rounded,
+                            requiredField: true,
+                            textInputAction: TextInputAction.next,
+                            validator: _required('Enter a country.'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    GlassInput(
+                      controller: _note,
+                      label: 'Delivery Note',
+                      hint: 'Gate code, landmark, or drop-off note',
+                      icon: Icons.sticky_note_2_outlined,
+                      maxLines: 2,
+                      textInputAction: TextInputAction.newline,
                     ),
                   ],
-                ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: GlassInput(
-                        controller: _state,
-                        label: 'State',
-                        hint: 'Wilayah Persekutuan',
-                        icon: Icons.map_outlined,
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: GlassInput(
-                        controller: _country,
-                        label: 'Country',
-                        hint: 'Malaysia',
-                        icon: Icons.public_rounded,
-                        requiredField: true,
-                        textInputAction: TextInputAction.next,
-                        validator: _required('Enter a country.'),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                GlassInput(
-                  controller: _note,
-                  label: 'Delivery Note',
-                  hint: 'Gate code, landmark, or drop-off note',
-                  icon: Icons.sticky_note_2_outlined,
-                  maxLines: 2,
-                  textInputAction: TextInputAction.newline,
                 ),
               ],
             ),
@@ -264,9 +274,17 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     );
   }
 
-  void _useSuggestion(_AddressSuggestion suggestion) {
-    final address = suggestion.address;
-    _search.text = suggestion.title;
+  void _useSearchResult(_AddressSearchResult result) {
+    _applyAddressResult(result);
+    setState(() {
+      _search.text = result.title;
+      _addressSearchStatus = 'Address details filled from search result.';
+      _addressResults = [];
+    });
+  }
+
+  void _applyAddressResult(_AddressSearchResult result) {
+    final address = result.address;
     _line1.text = address.line1;
     _line2.text = address.line2;
     _city.text = address.city;
@@ -327,15 +345,62 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
           timeLimit: Duration(seconds: 12),
         ),
       );
+      _AddressSearchResult? result;
+      try {
+        result = await _AddressSearchClient.reverse(
+          position.latitude,
+          position.longitude,
+        );
+      } catch (_) {
+        result = null;
+      }
+      if (result != null) _applyAddressResult(result);
       setState(() {
         _pinnedLocation = LatLng(position.latitude, position.longitude);
         _accuracyMeters = position.accuracy;
-        _locationStatus =
-            'Pinned current location. Confirm the address details below.';
+        _locationStatus = result == null
+            ? 'Pinned current location. Confirm the address details below.'
+            : 'Pinned current location and filled the address details below.';
         _locating = false;
       });
     } catch (_) {
       _setLocationError('Could not get current location. Try again nearby.');
+    }
+  }
+
+  Future<void> _searchAddress() async {
+    final query = _search.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _addressSearchStatus = 'Enter an address, street, or postcode first.';
+        _addressResults = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _searchingAddress = true;
+      _addressSearchStatus = 'Searching address...';
+      _addressResults = [];
+    });
+
+    try {
+      final results = await _AddressSearchClient.search(query);
+      if (!mounted) return;
+      setState(() {
+        _addressResults = results;
+        _addressSearchStatus = results.isEmpty
+            ? 'No address found. Try a more specific building, street, or postcode.'
+            : 'Select a result to fill the address form.';
+        _searchingAddress = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _addressSearchStatus =
+            'Address search failed. Check the connection and try again.';
+        _searchingAddress = false;
+      });
     }
   }
 
@@ -522,10 +587,10 @@ class _LocationPanel extends StatelessWidget {
   }
 }
 
-class _AddressSuggestionTile extends StatelessWidget {
-  const _AddressSuggestionTile({required this.suggestion, required this.onTap});
+class _AddressResultTile extends StatelessWidget {
+  const _AddressResultTile({required this.result, required this.onTap});
 
-  final _AddressSuggestion suggestion;
+  final _AddressSearchResult result;
   final VoidCallback onTap;
 
   @override
@@ -538,18 +603,18 @@ class _AddressSuggestionTile extends StatelessWidget {
         onTap: onTap,
         leading: Icon(Icons.near_me_outlined, color: AppTheme.blue),
         title: Text(
-          suggestion.title,
+          result.title,
           style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.ink),
         ),
-        subtitle: Text(suggestion.subtitle, style: AppTheme.body),
+        subtitle: Text(result.subtitle, style: AppTheme.body),
         trailing: Icon(Icons.add_location_alt_outlined, color: AppTheme.muted),
       ),
     );
   }
 }
 
-class _AddressSuggestion {
-  const _AddressSuggestion({
+class _AddressSearchResult {
+  const _AddressSearchResult({
     required this.title,
     required this.subtitle,
     required this.address,
@@ -558,72 +623,149 @@ class _AddressSuggestion {
   final String title;
   final String subtitle;
   final DeliveryAddress address;
-
-  String get searchText => [
-    title,
-    subtitle,
-    address.line1,
-    address.line2,
-    address.city,
-    address.state,
-    address.postcode,
-    address.country,
-  ].join(' ').toLowerCase();
 }
 
-const _suggestions = [
-  _AddressSuggestion(
-    title: 'KLCC, Jalan Ampang',
-    subtitle: '50088 Kuala Lumpur, Malaysia',
-    address: DeliveryAddress(
-      recipient: '',
-      phone: '',
-      line1: 'Kuala Lumpur City Centre',
-      line2: 'Jalan Ampang',
-      city: 'Kuala Lumpur',
-      state: 'Wilayah Persekutuan',
-      postcode: '50088',
-      country: 'Malaysia',
-      note: '',
-      latitude: 3.1579,
-      longitude: 101.7116,
-      accuracyMeters: null,
-    ),
-  ),
-  _AddressSuggestion(
-    title: 'Mid Valley Megamall',
-    subtitle: '59200 Kuala Lumpur, Malaysia',
-    address: DeliveryAddress(
-      recipient: '',
-      phone: '',
-      line1: 'Mid Valley Megamall',
-      line2: 'Lingkaran Syed Putra',
-      city: 'Kuala Lumpur',
-      state: 'Wilayah Persekutuan',
-      postcode: '59200',
-      country: 'Malaysia',
-      note: '',
-      latitude: 3.1188,
-      longitude: 101.6775,
-      accuracyMeters: null,
-    ),
-  ),
-  _AddressSuggestion(
-    title: 'The Exchange TRX',
-    subtitle: '55188 Kuala Lumpur, Malaysia',
-    address: DeliveryAddress(
-      recipient: '',
-      phone: '',
-      line1: 'The Exchange TRX',
-      line2: 'Persiaran TRX',
-      city: 'Kuala Lumpur',
-      state: 'Wilayah Persekutuan',
-      postcode: '55188',
-      country: 'Malaysia',
-      note: '',
-      latitude: 3.1427,
-      longitude: 101.7197,
-      accuracyMeters: null,
-    ),
-  ),
-];
+class _AddressSearchClient {
+  static const _host = 'nominatim.openstreetmap.org';
+  static const _userAgent = 'retro-tech-marketplace-coursework/1.0';
+
+  static Future<List<_AddressSearchResult>> search(String query) async {
+    final uri = Uri.https(_host, '/search', {
+      'format': 'jsonv2',
+      'addressdetails': '1',
+      'limit': '5',
+      'q': query,
+    });
+    final decoded = await _request(uri);
+    if (decoded is! List) return const [];
+    return decoded
+        .whereType<Map<String, Object?>>()
+        .map(_fromNominatim)
+        .whereType<_AddressSearchResult>()
+        .toList(growable: false);
+  }
+
+  static Future<_AddressSearchResult?> reverse(
+    double latitude,
+    double longitude,
+  ) async {
+    final uri = Uri.https(_host, '/reverse', {
+      'format': 'jsonv2',
+      'addressdetails': '1',
+      'lat': latitude.toString(),
+      'lon': longitude.toString(),
+    });
+    final decoded = await _request(uri);
+    if (decoded is! Map<String, Object?>) return null;
+    return _fromNominatim(decoded);
+  }
+
+  static Future<Object?> _request(Uri uri) async {
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(uri);
+      request.headers.set(HttpHeaders.userAgentHeader, _userAgent);
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException('Address lookup failed', uri: uri);
+      }
+      final body = await response.transform(utf8.decoder).join();
+      return jsonDecode(body);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  static _AddressSearchResult? _fromNominatim(Map<String, Object?> json) {
+    final displayName = json['display_name'] as String? ?? '';
+    final rawAddress = json['address'];
+    if (rawAddress is! Map<String, Object?> || displayName.trim().isEmpty) {
+      return null;
+    }
+
+    final latitude = double.tryParse(json['lat'] as String? ?? '');
+    final longitude = double.tryParse(json['lon'] as String? ?? '');
+    final name = _firstValue(json, rawAddress, const [
+      'name',
+      'amenity',
+      'building',
+      'shop',
+      'tourism',
+    ]);
+    final road = _joinNonEmpty([
+      _string(rawAddress['house_number']),
+      _string(rawAddress['road']),
+    ], separator: ' ');
+    final line1 = _firstNonEmpty([name, road, displayName.split(',').first]);
+    final line2 = _firstNonEmpty([
+      if (line1 != road) road,
+      _string(rawAddress['suburb']),
+      _string(rawAddress['neighbourhood']),
+    ]);
+    final city = _firstNonEmpty([
+      _string(rawAddress['city']),
+      _string(rawAddress['town']),
+      _string(rawAddress['village']),
+      _string(rawAddress['municipality']),
+      _string(rawAddress['county']),
+    ]);
+    final state = _string(rawAddress['state']);
+    final postcode = _string(rawAddress['postcode']);
+    final country = _string(rawAddress['country']);
+
+    return _AddressSearchResult(
+      title: line1,
+      subtitle: _joinNonEmpty([
+        postcode,
+        city,
+        state,
+        country,
+      ], separator: ', '),
+      address: DeliveryAddress(
+        recipient: '',
+        phone: '',
+        line1: line1,
+        line2: line2,
+        city: city,
+        state: state,
+        postcode: postcode,
+        country: country,
+        note: '',
+        latitude: latitude,
+        longitude: longitude,
+        accuracyMeters: null,
+      ),
+    );
+  }
+
+  static String _firstValue(
+    Map<String, Object?> root,
+    Map<String, Object?> address,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = _string(root[key]);
+      if (value.isNotEmpty) return value;
+      final addressValue = _string(address[key]);
+      if (addressValue.isNotEmpty) return addressValue;
+    }
+    return '';
+  }
+
+  static String _firstNonEmpty(List<String> values) {
+    for (final value in values) {
+      if (value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
+  }
+
+  static String _joinNonEmpty(
+    List<String> values, {
+    required String separator,
+  }) {
+    return values.where((value) => value.trim().isNotEmpty).join(separator);
+  }
+
+  static String _string(Object? value) => value is String ? value.trim() : '';
+}
