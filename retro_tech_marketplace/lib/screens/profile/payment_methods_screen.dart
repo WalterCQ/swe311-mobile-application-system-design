@@ -51,7 +51,7 @@ class PaymentMethodsScreen extends StatelessWidget {
                       _PaymentTile(
                         PaymentMethodOption.options[index],
                         selected:
-                            store.selectedPaymentMethod.id ==
+                            store.selectedPaymentMethod?.id ==
                             PaymentMethodOption.options[index].id,
                         onTap: () async {
                           await store.selectPaymentMethod(

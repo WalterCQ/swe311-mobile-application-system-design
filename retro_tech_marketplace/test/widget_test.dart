@@ -202,6 +202,50 @@ void main() {
 
     expect(tester.getSize(firstDot).width, 8);
     expect(tester.getSize(secondDot).width, 20);
+
+    await tester.drag(secondDot, const Offset(240, 0));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(firstDot).width, 20);
+    expect(tester.getSize(secondDot).width, 8);
+  });
+
+  testWidgets('openable listing card gallery still swipes between images', (
+    WidgetTester tester,
+  ) async {
+    setPhoneSize(tester);
+    final store = testStore();
+    final listing = seedListings.first;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: GlassScaffold(
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [ListingCard(listing: listing, openStore: store)],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final firstDot = find.byKey(
+      const ValueKey('home-gallery-motorola-v60-dot-0'),
+    );
+    final secondDot = find.byKey(
+      const ValueKey('home-gallery-motorola-v60-dot-1'),
+    );
+    expect(tester.getSize(firstDot).width, 20);
+
+    await tester.drag(
+      find.byKey(const ValueKey('home-gallery-page-view-motorola-v60')),
+      const Offset(-240, 0),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(firstDot).width, 8);
+    expect(tester.getSize(secondDot).width, 20);
   });
 
   testWidgets('home avatar switches the shell to profile', (
@@ -617,7 +661,7 @@ void main() {
 
     final wearablesCard = find.byKey(const ValueKey('category-card-Wearables'));
     expect(
-      find.descendant(of: wearablesCard, matching: find.text('0 items')),
+      find.descendant(of: wearablesCard, matching: find.text('1 item')),
       findsOneWidget,
     );
 
@@ -633,7 +677,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.descendant(of: wearablesCard, matching: find.text('1 item')),
+      find.descendant(of: wearablesCard, matching: find.text('2 items')),
       findsOneWidget,
     );
     expect(
@@ -849,6 +893,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+
     await tester.tap(find.text('Publish Listing'));
     await tester.pumpAndSettle();
 
@@ -901,11 +947,12 @@ void main() {
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Game Boy Pocket');
     await tester.enterText(fields.at(1), '429.50');
-    await tester.tap(find.text('Audio'));
+    final dropdowns = find.byType(DropdownButtonFormField<String>);
+    await tester.tap(dropdowns.at(0));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Gaming').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Used - Good').last);
+    await tester.tap(dropdowns.at(1));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Used - Good').last);
     await tester.pumpAndSettle();
@@ -1003,9 +1050,26 @@ void main() {
 
     await tester.tap(find.text('Apple Pay'));
     await tester.pumpAndSettle();
-    expect(store.selectedPaymentMethod.title, 'Apple Pay');
+    expect(store.selectedPaymentMethod?.title, 'Apple Pay');
     expect(find.text('Confirm with device passcode'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+    await store.saveDeliveryAddress(
+      const DeliveryAddress(
+        recipient: 'Guest Buyer',
+        phone: '+60 12-345 6789',
+        line1: 'Kuala Lumpur City Centre',
+        line2: 'Jalan Ampang',
+        city: 'Kuala Lumpur',
+        state: 'Wilayah Persekutuan',
+        postcode: '50088',
+        country: 'Malaysia',
+        note: '',
+        latitude: 3.1579,
+        longitude: 101.7116,
+        accuracyMeters: null,
+      ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1063,9 +1127,11 @@ void main() {
     await tester.tap(find.text('Track Order'));
     await tester.pumpAndSettle();
     expect(find.text('Order Detail'), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
   });
 
-  testWidgets('delivery address lookup suggestion saves checkout address', (
+  testWidgets('delivery address form saves checkout address', (
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -1082,17 +1148,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Use current'), findsOneWidget);
     expect(find.text('No delivery address selected'), findsOneWidget);
+    expect(find.text('KLCC, Jalan Ampang'), findsNothing);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'KLCC, 50088'),
-      'KLCC',
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('KLCC, Jalan Ampang'));
-    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Recipient name'),
       'Guest Buyer',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Street address or building name'),
+      'Kuala Lumpur City Centre',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, '50480'),
+      '50088',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Kuala Lumpur'),
+      'Kuala Lumpur',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Malaysia'),
+      'Malaysia',
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save Address'));
@@ -1206,9 +1282,13 @@ void main() {
     await tester.tap(find.text('Place Order'));
     await tester.pumpAndSettle();
 
-    expect(store.orders, hasLength(1));
-    expect(store.orders.single.listingId, ipod.id);
-    expect(find.text('Order Confirmed'), findsOneWidget);
+    expect(
+      find.text(
+        'Add a delivery address and choose a payment method before placing the order.',
+      ),
+      findsOneWidget,
+    );
+    expect(store.orders, isEmpty);
   });
 
   testWidgets('product detail seller chat icon opens listing chat', (

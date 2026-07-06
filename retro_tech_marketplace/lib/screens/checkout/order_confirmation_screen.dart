@@ -213,7 +213,7 @@ class OrderDetailScreen extends StatelessWidget {
           child: ListView(
             padding: EdgeInsets.fromLTRB(22, 18, 22, 30),
             children: [
-              TopBar(title: 'Order Detail'),
+              TopBar(title: 'Order Detail', showTrailing: false),
               SizedBox(height: 20),
               _OrderCard(order: item),
               SizedBox(height: 18),
@@ -337,7 +337,6 @@ class _ProgressChip extends StatelessWidget {
 
 OrderRecord _fallbackOrder(ListingStore store) {
   final listing = seedListings.first;
-  final method = store.selectedPaymentMethod;
   return OrderRecord(
     id: 'RT2048',
     listingId: listing.id,
@@ -347,8 +346,8 @@ OrderRecord _fallbackOrder(ListingStore store) {
     itemPrice: listing.price,
     shipping: 35,
     protectionFee: 0,
-    paymentMethodId: method.id,
-    paymentMethodTitle: method.title,
+    paymentMethodId: 'missing',
+    paymentMethodTitle: 'Payment not selected',
     status: 'Placed',
     createdAt: DateTime.now(),
   );

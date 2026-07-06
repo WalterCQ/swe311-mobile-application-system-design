@@ -78,7 +78,9 @@ class CheckoutScreen extends StatelessWidget {
                 _CheckoutTile(
                   Icons.credit_card_outlined,
                   'Payment Method',
-                  '${store.selectedPaymentMethod.title}\n${store.selectedPaymentMethod.processingNote}',
+                  store.selectedPaymentMethod == null
+                      ? 'No payment method selected'
+                      : '${store.selectedPaymentMethod!.title}\n${store.selectedPaymentMethod!.processingNote}',
                   openPage: PaymentMethodsScreen(
                     store: store,
                     closeOnSelect: true,
@@ -111,6 +113,22 @@ class CheckoutScreen extends StatelessWidget {
                 label: 'Place Order',
                 icon: Icons.inventory_2_outlined,
                 onPressed: () async {
+                  final missingAddress = store.selectedDeliveryAddress.isEmpty;
+                  final missingPayment = !store.hasSelectedPaymentMethod;
+                  if (missingAddress || missingPayment) {
+                    final message = missingAddress && missingPayment
+                        ? 'Add a delivery address and choose a payment method before placing the order.'
+                        : missingAddress
+                        ? 'Add a delivery address before placing the order.'
+                        : 'Choose a payment method before placing the order.';
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(message),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
                   final order = await store.createOrder(item);
                   if (!context.mounted) return;
                   Navigator.pushReplacementNamed(

@@ -56,7 +56,10 @@ class PaymentMethodOption {
     ),
   ];
 
-  static PaymentMethodOption byId(String id) {
-    return options.firstWhere((method) => method.id == id, orElse: () => visa);
+  static PaymentMethodOption? byId(String id) {
+    for (final method in options) {
+      if (method.id == id) return method;
+    }
+    return null;
   }
 }

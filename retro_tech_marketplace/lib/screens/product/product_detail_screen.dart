@@ -714,7 +714,26 @@ class Dots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    var dragOffset = 0.0;
+
+    void resetDrag() => dragOffset = 0;
+
+    void trackDrag(DragUpdateDetails details) {
+      dragOffset += details.primaryDelta ?? 0;
+    }
+
+    void selectByDragEnd(DragEndDetails details) {
+      if (onSelected == null || count < 2) return;
+      final velocity = details.primaryVelocity ?? 0;
+      final movement = dragOffset.abs() >= 12 ? dragOffset : -velocity;
+      resetDrag();
+      if (movement.abs() < 12) return;
+      final direction = movement < 0 ? 1 : -1;
+      final nextIndex = (activeIndex + direction).clamp(0, count - 1);
+      if (nextIndex != activeIndex) onSelected!(nextIndex);
+    }
+
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(count, (index) {
         final active = index == activeIndex;
@@ -742,6 +761,9 @@ class Dots extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => onSelected!(index),
+            onHorizontalDragStart: (_) => resetDrag(),
+            onHorizontalDragUpdate: trackDrag,
+            onHorizontalDragEnd: selectByDragEnd,
             child: SizedBox(
               width: 28,
               height: 22,
@@ -750,6 +772,15 @@ class Dots extends StatelessWidget {
           ),
         );
       }),
+    );
+    if (onSelected == null || count < 2) return row;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (_) => resetDrag(),
+      onHorizontalDragUpdate: trackDrag,
+      onHorizontalDragEnd: selectByDragEnd,
+      child: row,
     );
   }
 }

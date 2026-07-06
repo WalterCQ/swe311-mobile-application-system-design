@@ -10,7 +10,7 @@ import '../store/seed_data.dart';
 
 class ListingRepository {
   static const _databaseName = 'retro_tech_marketplace.db';
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 4;
   static const _listingsTable = 'listings';
   static const _profileTable = 'profile';
   static const _savedItemsTable = 'saved_items';
@@ -57,6 +57,20 @@ class ListingRepository {
     }
     if (oldVersion < 3) {
       await _createFeatureTables(db);
+    }
+    if (oldVersion < 4) {
+      final listing = seedListings.firstWhere(
+        (item) => item.id == 'clear-watch',
+      );
+      final rows = await db.rawQuery(
+        'SELECT COALESCE(MAX(sortOrder), -1) AS maxSortOrder FROM $_listingsTable',
+      );
+      final maxSortOrder = (rows.first['maxSortOrder'] as num).toInt();
+      await db.insert(
+        _listingsTable,
+        listing.toMap(sortOrder: maxSortOrder + 1),
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
   }
 

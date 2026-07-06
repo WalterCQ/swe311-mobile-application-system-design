@@ -463,23 +463,6 @@ class _MessageTile extends StatelessWidget {
                         fontWeight: unread ? FontWeight.w800 : FontWeight.w500,
                       ),
                     ),
-                    if (unread)
-                      Container(
-                        margin: EdgeInsets.only(top: 8),
-                        padding: EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: AppTheme.blue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          message.badge,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ],

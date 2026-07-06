@@ -108,6 +108,7 @@ class FormShell extends StatelessWidget {
                   trailing: title.contains('Edit')
                       ? Icons.visibility_outlined
                       : null,
+                  showTrailing: title.contains('Edit'),
                 ),
                 SizedBox(height: 22),
                 ...children,
