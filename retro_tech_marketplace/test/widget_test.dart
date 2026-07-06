@@ -1132,6 +1132,23 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final store = testStore();
     await store.load();
+    await store.saveDeliveryAddress(
+      const DeliveryAddress(
+        recipient: 'Guest Buyer',
+        phone: '+60 12 345 6789',
+        line1: 'KLCC, Jalan Ampang',
+        line2: '',
+        city: 'Kuala Lumpur',
+        state: 'Kuala Lumpur',
+        postcode: '50450',
+        country: 'Malaysia',
+        note: '',
+        latitude: null,
+        longitude: null,
+        accuracyMeters: null,
+      ),
+    );
+    await store.selectPaymentMethod('visa');
     final order = await store.createOrder(seedListings.first);
     setPhoneSize(tester);
 
