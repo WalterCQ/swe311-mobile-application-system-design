@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:retro_tech_marketplace/app.dart';
 import 'package:retro_tech_marketplace/constants/assets.dart';
 import 'package:retro_tech_marketplace/data/listing_repository.dart';
+import 'package:retro_tech_marketplace/models/chat_message.dart';
+import 'package:retro_tech_marketplace/models/community_record.dart';
 import 'package:retro_tech_marketplace/models/delivery_address.dart';
 import 'package:retro_tech_marketplace/models/listing.dart';
 import 'package:retro_tech_marketplace/models/order_record.dart';
@@ -124,6 +126,14 @@ void main() {
   }
 
   Future<void> logIn(WidgetTester tester) async {
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Username or Email'),
+      DemoAuthService.defaultUsername,
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      DemoAuthService.defaultPassword,
+    );
     await tester.ensureVisible(find.text('Log In'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Log In'));
@@ -1376,6 +1386,11 @@ class FakeListingRepository extends ListingRepository {
   final Set<String> _savedItemIds = {};
   final List<OrderRecord> _orders = [];
   final Set<String> _followedSellers = {};
+  final List<ChatMessage> _chatMessages = [];
+  final Map<String, ChatConversationState> _chatStates = {};
+  final Set<String> _likedCommunityPostIds = {};
+  final List<CommunityReplyRecord> _communityReplies = [];
+  final Set<String> _likedCommunityReplyIds = {};
   UserProfile _profile = UserProfile.defaults;
 
   @override
@@ -1437,6 +1452,64 @@ class FakeListingRepository extends ListingRepository {
       _followedSellers.add(seller);
     } else {
       _followedSellers.remove(seller);
+    }
+  }
+
+  @override
+  Future<List<ChatMessage>> loadChatMessages() async {
+    return List<ChatMessage>.of(_chatMessages);
+  }
+
+  @override
+  Future<void> addChatMessage(ChatMessage message) async {
+    _chatMessages.add(message);
+  }
+
+  @override
+  Future<List<ChatConversationState>> loadChatConversationStates() async {
+    return List<ChatConversationState>.of(_chatStates.values);
+  }
+
+  @override
+  Future<void> saveChatConversationState(ChatConversationState state) async {
+    _chatStates[state.conversationId] = state;
+  }
+
+  @override
+  Future<Set<String>> loadCommunityPostLikeIds() async {
+    return Set<String>.of(_likedCommunityPostIds);
+  }
+
+  @override
+  Future<void> setCommunityPostLiked(String postId, bool liked) async {
+    if (liked) {
+      _likedCommunityPostIds.add(postId);
+    } else {
+      _likedCommunityPostIds.remove(postId);
+    }
+  }
+
+  @override
+  Future<List<CommunityReplyRecord>> loadCommunityReplies() async {
+    return List<CommunityReplyRecord>.of(_communityReplies);
+  }
+
+  @override
+  Future<void> addCommunityReply(CommunityReplyRecord reply) async {
+    _communityReplies.insert(0, reply);
+  }
+
+  @override
+  Future<Set<String>> loadCommunityReplyLikeIds() async {
+    return Set<String>.of(_likedCommunityReplyIds);
+  }
+
+  @override
+  Future<void> setCommunityReplyLiked(String replyId, bool liked) async {
+    if (liked) {
+      _likedCommunityReplyIds.add(replyId);
+    } else {
+      _likedCommunityReplyIds.remove(replyId);
     }
   }
 }
