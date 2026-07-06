@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../constants/assets.dart';
 import '../../constants/theme.dart';
 import '../../store/listing_store.dart';
 import '../../widgets/glass_card.dart';
@@ -56,7 +55,12 @@ class AccountProfileScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 4),
-            Center(child: Text(profile.bio, style: AppTheme.body)),
+            Center(
+              child: Text(
+                store.privacy ? 'Private local profile' : profile.bio,
+                style: AppTheme.body,
+              ),
+            ),
             SizedBox(height: 10),
             Center(
               child: OpenMotionContainer(
@@ -94,7 +98,6 @@ class AccountProfileScreen extends StatelessWidget {
                   'My Listings',
                   Icons.sell_outlined,
                   null,
-                  badge: '${store.listings.length}',
                   openPage: MyListingsScreen(store: store),
                   routeSettings: const RouteSettings(name: '/my-listings'),
                 ),
@@ -102,7 +105,6 @@ class AccountProfileScreen extends StatelessWidget {
                   'Orders',
                   Icons.inventory_2_outlined,
                   null,
-                  badge: '${store.orders.length}',
                   openPage: OrdersScreen(store: store),
                   routeSettings: const RouteSettings(name: '/orders'),
                 ),
@@ -117,28 +119,11 @@ class AccountProfileScreen extends StatelessWidget {
                   'Saved Items',
                   Icons.favorite_border_rounded,
                   null,
-                  badge: '${store.savedListings.length}',
                   openPage: SavedItemsScreen(store: store),
                   routeSettings: const RouteSettings(name: '/saved-items'),
                 ),
               ],
             ),
-            SizedBox(height: 14),
-            Text('Recent Activity', style: AppTheme.h2.copyWith(fontSize: 16)),
-            SizedBox(height: 12),
-            ActivityTile(
-              'iPod Classic 4th Gen',
-              'Listing updated',
-              '2h ago',
-              Assets.ipodFront,
-            ),
-            if (store.savedListings.isNotEmpty)
-              ActivityTile(
-                store.savedListings.first.shortTitle,
-                'Saved item',
-                'Now',
-                store.savedListings.first.imageAsset,
-              ),
           ],
         );
       },
@@ -152,7 +137,6 @@ class ProfileRow extends StatelessWidget {
     this.icon,
     this.onTap, {
     super.key,
-    this.badge,
     this.openPage,
     this.routeSettings,
   });
@@ -160,7 +144,6 @@ class ProfileRow extends StatelessWidget {
   final String title;
   final IconData icon;
   final VoidCallback? onTap;
-  final String? badge;
   final Widget? openPage;
   final RouteSettings? routeSettings;
 
@@ -171,59 +154,12 @@ class ProfileRow extends StatelessWidget {
       return OpenMotionListRow(
         icon: icon,
         title: title,
-        badge: badge,
         dense: true,
         openPage: page,
         routeSettings: routeSettings,
       );
     }
-    return GlassListRow(
-      icon: icon,
-      title: title,
-      badge: badge,
-      onTap: onTap,
-      dense: true,
-    );
-  }
-}
-
-class ActivityTile extends StatelessWidget {
-  const ActivityTile(
-    this.title,
-    this.subtitle,
-    this.time,
-    this.asset, {
-    super.key,
-  });
-
-  final String title;
-  final String subtitle;
-  final String time;
-  final String asset;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      margin: EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.all(10),
-      radius: 20,
-      child: Row(
-        children: [
-          ProductImage(asset: asset, width: 42, height: 42),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.w900)),
-                Text(subtitle, style: AppTheme.body.copyWith(fontSize: 12)),
-              ],
-            ),
-          ),
-          Text(time, style: AppTheme.body.copyWith(fontSize: 11)),
-        ],
-      ),
-    );
+    return GlassListRow(icon: icon, title: title, onTap: onTap, dense: true);
   }
 }
 

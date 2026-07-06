@@ -1,7 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import '../../constants/assets.dart';
 import '../../constants/theme.dart';
+import '../../models/chat_message.dart';
 import '../../models/listing.dart';
+import '../../store/listing_store.dart';
 import '../../store/seed_data.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/glass_scaffold.dart';
@@ -11,8 +18,9 @@ import '../../widgets/logo_mark.dart';
 import '../../widgets/navigation.dart';
 
 class InboxScreen extends StatefulWidget {
-  const InboxScreen({super.key, this.inShell = false});
+  const InboxScreen({super.key, this.store, this.inShell = false});
 
+  final ListingStore? store;
   final bool inShell;
 
   @override
@@ -32,9 +40,20 @@ class _InboxScreenState extends State<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final store = widget.store;
+    if (store != null) {
+      return AnimatedBuilder(
+        animation: store,
+        builder: (context, _) => _buildContent(context, _messagesFor(store)),
+      );
+    }
+    return _buildContent(context, _baseInboxMessages);
+  }
+
+  Widget _buildContent(BuildContext context, List<_InboxMessage> messages) {
     final metrics = ResponsiveMetrics.of(context);
     final query = _query.trim().toLowerCase();
-    final visibleMessages = _inboxMessages
+    final visibleMessages = messages
         .where((message) {
           final listing = _listingFor(message);
           return message.type == _filter &&
@@ -60,10 +79,7 @@ class _InboxScreenState extends State<InboxScreen> {
             Spacer(),
             Text('Inbox', style: AppTheme.h2),
             Spacer(),
-            CircleGlassButton(
-              icon: Icons.tune_rounded,
-              onTap: () => _showInboxFilter(context),
-            ),
+            const SizedBox(width: 46, height: 46),
           ],
         ),
         SizedBox(height: 18),
@@ -106,16 +122,76 @@ class _InboxScreenState extends State<InboxScreen> {
           )
         else
           ...visibleMessages.map(
-            (message) => _MessageTile(message, listing: _listingFor(message)),
+            (message) => _MessageTile(
+              message,
+              listing: _listingFor(message),
+              store: widget.store,
+            ),
           ),
       ],
     );
     return widget.inShell ? content : GlassScaffold(child: content);
   }
 
+  List<_InboxMessage> _messagesFor(ListingStore store) {
+    final messages = <_InboxMessage>[];
+    for (final message in _baseInboxMessages) {
+      if (message.type == 'Orders') {
+        if (store.orders.isEmpty) {
+          messages.add(message);
+          continue;
+        }
+        final order = store.orders.first;
+        messages.add(
+          _InboxMessage(
+            'Orders',
+            'RetroTech Orders',
+            'Order ${order.id} placed for ${order.listingTitle}.',
+            'Today',
+            '',
+            Assets.logoMark,
+            listingId: order.listingId,
+          ),
+        );
+        continue;
+      }
+      if (message.type != 'Messages') {
+        messages.add(message);
+        continue;
+      }
+      final listing = _listingFor(message);
+      final conversationId = ListingStore.conversationIdFor(
+        listing: listing,
+        sellerName: message.name,
+      );
+      final latest = store.latestChatMessageFor(conversationId);
+      final state = store.chatStateFor(
+        conversationId: conversationId,
+        sellerName: message.name,
+        listingId: listing?.id,
+      );
+      messages.add(
+        _InboxMessage(
+          message.type,
+          message.name,
+          state.blocked
+              ? 'Conversation blocked locally.'
+              : latest?.text ?? message.message,
+          latest?.timeLabel ?? message.time,
+          latest == null && !state.blocked ? message.badge : '',
+          message.avatarAsset,
+          listingId: message.listingId,
+        ),
+      );
+    }
+    return messages;
+  }
+
   Listing? _listingFor(_InboxMessage message) {
     final listingId = message.listingId;
     if (listingId == null) return null;
+    final storeListing = widget.store?.byId(listingId);
+    if (storeListing != null) return storeListing;
     for (final listing in seedListings) {
       if (listing.id == listingId) return listing;
     }
@@ -194,72 +270,6 @@ class _InboxScreenState extends State<InboxScreen> {
     if (selected == null || !mounted) return;
     setState(() => _query = selected);
   }
-
-  Future<void> _showInboxFilter(BuildContext context) async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.white.withValues(alpha: 0.38),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-            child: GlassCard(
-              radius: 28,
-              opacity: 0.84,
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 14),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filter Inbox',
-                    style: AppTheme.h2.copyWith(fontSize: 20),
-                  ),
-                  const SizedBox(height: 14),
-                  for (final label in const ['Messages', 'Orders', 'Support'])
-                    LiquidPressable(
-                      onTap: () => Navigator.pop(sheetContext, label),
-                      active: _filter == label,
-                      borderRadius: BorderRadius.circular(18),
-                      glowColor: AppTheme.blue,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                label,
-                                style: AppTheme.label.copyWith(
-                                  color: _filter == label
-                                      ? AppTheme.blue
-                                      : AppTheme.ink,
-                                ),
-                              ),
-                            ),
-                            if (_filter == label)
-                              const Icon(
-                                Icons.check_rounded,
-                                color: AppTheme.blue,
-                                size: 20,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    if (selected == null || !mounted) return;
-    setState(() => _filter = selected);
-  }
 }
 
 class _InboxMessage {
@@ -282,7 +292,7 @@ class _InboxMessage {
   final String? listingId;
 }
 
-const _inboxMessages = [
+const _baseInboxMessages = [
   _InboxMessage(
     'Messages',
     'RetroTech Collector',
@@ -313,7 +323,7 @@ const _inboxMessages = [
   _InboxMessage(
     'Orders',
     'RetroTech Orders',
-    'Your latest order is paid and seller notified.',
+    'Your latest order was placed with your selected payment method.',
     'Today',
     '',
     Assets.logoMark,
@@ -330,10 +340,11 @@ const _inboxMessages = [
 ];
 
 class _MessageTile extends StatelessWidget {
-  const _MessageTile(this.message, {this.listing});
+  const _MessageTile(this.message, {this.listing, this.store});
 
   final _InboxMessage message;
   final Listing? listing;
+  final ListingStore? store;
 
   @override
   Widget build(BuildContext context) {
@@ -343,7 +354,11 @@ class _MessageTile extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 12),
       child: OpenMotionContainer(
         radius: 30,
-        openPage: ChatThreadScreen(listing: item, sellerName: message.name),
+        openPage: ChatThreadScreen(
+          store: store,
+          listing: item,
+          sellerName: message.name,
+        ),
         routeSettings: const RouteSettings(name: '/chat'),
         closedBuilder: (openContainer) => LiquidPressable(
           onTap: openContainer,
@@ -479,8 +494,14 @@ class _MessageTile extends StatelessWidget {
 }
 
 class ChatThreadScreen extends StatefulWidget {
-  const ChatThreadScreen({super.key, this.listing, this.sellerName});
+  const ChatThreadScreen({
+    super.key,
+    this.store,
+    this.listing,
+    this.sellerName,
+  });
 
+  final ListingStore? store;
   final Listing? listing;
   final String? sellerName;
 
@@ -491,11 +512,33 @@ class ChatThreadScreen extends StatefulWidget {
 class ChatThreadScreenState extends State<ChatThreadScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  late final List<_ChatLine> _messages = _initialMessages;
+  late List<_ChatLine> _messages;
+  bool _localBlocked = false;
+  bool _localReported = false;
 
   Listing get _item => widget.listing ?? seedListings.first;
   String get _sellerName =>
       widget.sellerName ?? widget.listing?.seller ?? _item.seller;
+  String get _conversationId => ListingStore.conversationIdFor(
+    listing: widget.listing,
+    sellerName: _sellerName,
+  );
+  ChatConversationState get _conversationState {
+    return widget.store?.chatStateFor(
+          conversationId: _conversationId,
+          sellerName: _sellerName,
+          listingId: widget.listing?.id,
+        ) ??
+        ChatConversationState(
+          conversationId: _conversationId,
+          sellerName: _sellerName,
+          listingId: widget.listing?.id,
+          blocked: _localBlocked,
+          reported: _localReported,
+          updatedAt: DateTime.now(),
+        );
+  }
+
   String get _sellerAvatarAsset {
     return switch (_sellerName) {
       'VintageAudioCo' => Assets.avatarVintage,
@@ -549,17 +592,45 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _messages = [
+      ..._initialMessages,
+      for (final message
+          in widget.store?.chatMessagesFor(_conversationId) ??
+              const <ChatMessage>[])
+        _ChatLine.fromMessage(message),
+    ];
+  }
+
+  @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
+    if (_conversationState.blocked) {
+      showAppSnackBar(context, 'Unblock this conversation before sending.');
+      return;
+    }
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+    final now = DateTime.now();
+    final message = ChatMessage(
+      id: 'chat-${now.microsecondsSinceEpoch}',
+      conversationId: _conversationId,
+      sellerName: _sellerName,
+      listingId: widget.listing?.id,
+      text: text,
+      mine: true,
+      createdAt: now,
+    );
+    await widget.store?.addChatMessage(message);
+    if (!mounted) return;
     setState(() {
-      _messages.add(_ChatLine(text, true, 'Now'));
+      _messages.add(_ChatLine.fromMessage(message));
       _messageController.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -572,10 +643,138 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
     });
   }
 
+  Future<void> _attachImage() async {
+    if (_conversationState.blocked) {
+      showAppSnackBar(context, 'Unblock this conversation before attaching.');
+      return;
+    }
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null) {
+      if (!mounted) return;
+      showAppSnackBar(context, 'No image selected.');
+      return;
+    }
+    final attachmentsDirectory = Directory(
+      path.join((await getApplicationDocumentsDirectory()).path, 'chat_images'),
+    );
+    await attachmentsDirectory.create(recursive: true);
+    final targetPath = path.join(
+      attachmentsDirectory.path,
+      '${DateTime.now().microsecondsSinceEpoch}-${path.basename(picked.path)}',
+    );
+    await File(picked.path).copy(targetPath);
+    final now = DateTime.now();
+    final message = ChatMessage(
+      id: 'chat-${now.microsecondsSinceEpoch}',
+      conversationId: _conversationId,
+      sellerName: _sellerName,
+      listingId: widget.listing?.id,
+      text: 'Photo attachment',
+      mine: true,
+      imagePath: targetPath,
+      createdAt: now,
+    );
+    await widget.store?.addChatMessage(message);
+    if (!mounted) return;
+    setState(() => _messages.add(_ChatLine.fromMessage(message)));
+    showAppSnackBar(context, 'Image attached locally.');
+  }
+
+  Future<void> _showConversationActions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.white.withValues(alpha: 0.38),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            final state = _conversationState;
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                child: GlassCard(
+                  radius: 28,
+                  opacity: 0.84,
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.more_horiz_rounded,
+                        color: AppTheme.blue,
+                        size: 30,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Conversation details',
+                        style: AppTheme.h2.copyWith(fontSize: 20),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        state.reported
+                            ? 'This conversation has been reported locally.'
+                            : 'Report or block this seller in the local demo.',
+                        style: AppTheme.body.copyWith(height: 1.45),
+                      ),
+                      const SizedBox(height: 18),
+                      LiquidButton(
+                        label: state.reported ? 'Reported Locally' : 'Report',
+                        height: 48,
+                        icon: Icons.flag_outlined,
+                        onPressed: state.reported
+                            ? () {}
+                            : () async {
+                                await widget.store?.markChatReported(
+                                  conversationId: _conversationId,
+                                  sellerName: _sellerName,
+                                  listingId: widget.listing?.id,
+                                );
+                                if (widget.store == null) {
+                                  setState(() => _localReported = true);
+                                }
+                                setSheetState(() {});
+                              },
+                      ),
+                      const SizedBox(height: 10),
+                      LiquidButton(
+                        label: state.blocked
+                            ? 'Unblock Seller'
+                            : 'Block Seller',
+                        height: 48,
+                        icon: state.blocked
+                            ? Icons.lock_open_rounded
+                            : Icons.block_rounded,
+                        onPressed: () async {
+                          final nextBlocked = !state.blocked;
+                          await widget.store?.setChatBlocked(
+                            conversationId: _conversationId,
+                            sellerName: _sellerName,
+                            listingId: widget.listing?.id,
+                            blocked: nextBlocked,
+                          );
+                          if (widget.store == null) {
+                            setState(() => _localBlocked = nextBlocked);
+                          }
+                          setSheetState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = _item;
     final metrics = ResponsiveMetrics.of(context);
+    final conversationState = _conversationState;
     return GlassScaffold(
       child: Column(
         children: [
@@ -611,7 +810,11 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
                         style: AppTheme.h2.copyWith(fontSize: 16),
                       ),
                       Text(
-                        'Active today',
+                        conversationState.blocked
+                            ? 'Blocked locally'
+                            : conversationState.reported
+                            ? 'Reported locally'
+                            : 'Active today',
                         style: AppTheme.body.copyWith(fontSize: 12),
                       ),
                     ],
@@ -619,13 +822,7 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
                 ),
                 CircleGlassButton(
                   icon: Icons.more_horiz_rounded,
-                  onTap: () => showInfoSheet(
-                    context,
-                    icon: Icons.more_horiz_rounded,
-                    title: 'Conversation details',
-                    body:
-                        'This demo keeps chat messages locally on this screen. Attachments, blocking, and reporting are not connected yet.',
-                  ),
+                  onTap: _showConversationActions,
                 ),
               ],
             ),
@@ -758,7 +955,15 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               child: Row(
                 children: [
-                  Icon(Icons.image_outlined, color: AppTheme.muted),
+                  LiquidPressable(
+                    onTap: _attachImage,
+                    borderRadius: BorderRadius.circular(18),
+                    glowColor: AppTheme.blue,
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(Icons.image_outlined, color: AppTheme.muted),
+                    ),
+                  ),
                   SizedBox(width: 12),
                   Expanded(
                     child: TextField(
@@ -772,7 +977,9 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
                         fontWeight: FontWeight.w700,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Message seller',
+                        hintText: conversationState.blocked
+                            ? 'Conversation blocked'
+                            : 'Message seller',
                         hintStyle: AppTheme.body,
                         border: InputBorder.none,
                       ),
@@ -797,11 +1004,21 @@ class ChatThreadScreenState extends State<ChatThreadScreen> {
 String _cleanListingMeta(String value) => value.replaceAll('\n', ' - ');
 
 class _ChatLine {
-  const _ChatLine(this.text, this.mine, this.time);
+  const _ChatLine(this.text, this.mine, this.time, {this.imagePath});
+
+  factory _ChatLine.fromMessage(ChatMessage message) {
+    return _ChatLine(
+      message.text,
+      message.mine,
+      message.timeLabel,
+      imagePath: message.imagePath,
+    );
+  }
 
   final String text;
   final bool mine;
   final String time;
+  final String? imagePath;
 }
 
 class _ChatBubble extends StatelessWidget {
@@ -839,6 +1056,18 @@ class _ChatBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (line.imagePath != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.file(
+                  File(line.imagePath!),
+                  width: 180,
+                  height: 140,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              SizedBox(height: 8),
+            ],
             Text(
               line.text,
               style: TextStyle(

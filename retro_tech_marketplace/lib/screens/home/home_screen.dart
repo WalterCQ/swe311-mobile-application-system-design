@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/assets.dart';
 import '../../constants/theme.dart';
+import '../../models/community_record.dart';
 import '../../models/listing.dart';
 import '../../store/listing_store.dart';
 import '../../widgets/glass_card.dart';
@@ -67,7 +68,7 @@ class FavoriteButtonState extends State<FavoriteButton> {
   }
 }
 
-class HomeListingCard extends StatelessWidget {
+class HomeListingCard extends StatefulWidget {
   const HomeListingCard({
     super.key,
     required this.listing,
@@ -84,10 +85,45 @@ class HomeListingCard extends StatelessWidget {
   final ListingStore? store;
 
   @override
+  State<HomeListingCard> createState() => _HomeListingCardState();
+}
+
+class _HomeListingCardState extends State<HomeListingCard> {
+  late final PageController _galleryController;
+  int _activeImageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _galleryController = PageController();
+  }
+
+  @override
+  void didUpdateWidget(HomeListingCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final imageCount = widget.listing.detailImageAssets.length;
+    if (oldWidget.listing.id != widget.listing.id ||
+        _activeImageIndex >= imageCount) {
+      _activeImageIndex = 0;
+      if (_galleryController.hasClients) {
+        _galleryController.jumpToPage(0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _galleryController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final metrics = ResponsiveMetrics.of(context);
+    final listing = widget.listing;
     final isMotorola = listing.id == 'motorola-v60';
     final isIpod = listing.id == 'ipod-classic';
+    final galleryImages = listing.detailImageAssets;
     final usesVerticalImageFrame =
         listing.imageAsset == Assets.v60 ||
         listing.imageAsset == Assets.ipodFront ||
@@ -119,9 +155,9 @@ class HomeListingCard extends StatelessWidget {
         ? BoxFit.cover
         : BoxFit.contain;
     return Container(
-      margin: margin ?? EdgeInsets.only(bottom: metrics.gutter + 2),
+      margin: widget.margin ?? EdgeInsets.only(bottom: metrics.gutter + 2),
       child: LiquidPressable(
-        onTap: onTap,
+        onTap: widget.onTap,
         borderRadius: BorderRadius.circular(metrics.cardRadius),
         glowColor: AppTheme.red,
         child: LayoutBuilder(
@@ -198,20 +234,44 @@ class HomeListingCard extends StatelessWidget {
                           Expanded(
                             child: Transform.scale(
                               scale: compact ? 1.12 : 1.16,
-                              child: FittedBox(
-                                fit: BoxFit.contain,
-                                child: ProductImage(
-                                  asset: listing.imageAsset,
-                                  width: imageWidth,
-                                  height: imageHeight,
-                                  fit: imageFit,
-                                  heroTag: heroTag,
+                              child: PageView.builder(
+                                key: ValueKey(
+                                  'home-gallery-page-view-${listing.id}',
                                 ),
+                                controller: _galleryController,
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: galleryImages.length,
+                                onPageChanged: (index) =>
+                                    setState(() => _activeImageIndex = index),
+                                itemBuilder: (context, index) {
+                                  return FittedBox(
+                                    fit: BoxFit.contain,
+                                    child: ProductImage(
+                                      asset: galleryImages[index],
+                                      width: imageWidth,
+                                      height: imageHeight,
+                                      fit: imageFit,
+                                      heroTag: index == _activeImageIndex
+                                          ? widget.heroTag
+                                          : null,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
                           SizedBox(height: compact ? 4 : 6),
-                          const Dots(),
+                          Dots(
+                            count: galleryImages.length,
+                            activeIndex: _activeImageIndex,
+                            keyPrefix: 'home-gallery-${listing.id}',
+                            onSelected: (index) =>
+                                _galleryController.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 260),
+                                  curve: Curves.easeOutCubic,
+                                ),
+                          ),
                         ],
                       ),
                     ),
@@ -220,7 +280,7 @@ class HomeListingCard extends StatelessWidget {
                       width: buttonSize,
                       child: Column(
                         children: [
-                          if (store == null)
+                          if (widget.store == null)
                             CircleGlassButton(
                               icon: Icons.favorite_border_rounded,
                               color: AppTheme.red,
@@ -228,7 +288,7 @@ class HomeListingCard extends StatelessWidget {
                             )
                           else
                             FavoriteButton(
-                              store: store!,
+                              store: widget.store!,
                               listing: listing,
                               size: buttonSize,
                             ),
@@ -258,10 +318,16 @@ class HomeListingCard extends StatelessWidget {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.store, required this.onSearchTap});
+  const HomeScreen({
+    super.key,
+    required this.store,
+    required this.onSearchTap,
+    required this.onProfileTap,
+  });
 
   final ListingStore store;
   final VoidCallback onSearchTap;
+  final VoidCallback onProfileTap;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -270,7 +336,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _segment = 0;
   int _communityFeed = 0;
-  final Set<_CommunityPost> _likedCommunityPosts = <_CommunityPost>{};
 
   @override
   Widget build(BuildContext context) {
@@ -284,8 +349,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               children: [
                 CircleGlassImageButton(
+                  key: const ValueKey('home-profile-avatar-button'),
                   asset: Assets.homeAvatar,
-                  onTap: () => Navigator.pushNamed(context, '/seller'),
+                  onTap: widget.onProfileTap,
                 ),
                 SizedBox(width: metrics.compact ? 12 : 18),
                 Expanded(
@@ -406,6 +472,8 @@ class _HomeScreenState extends State<HomeScreen> {
       posts.sort(
         (a, b) => (b.likes + b.replies * 2).compareTo(a.likes + a.replies * 2),
       );
+    } else {
+      posts.removeWhere((post) => !widget.store.isFollowing(post.user));
     }
 
     return [
@@ -438,34 +506,42 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       SizedBox(height: 14),
+      if (posts.isEmpty)
+        GlassCard(
+          padding: EdgeInsets.all(18),
+          child: Text(
+            'Follow sellers to see their community posts here.',
+            style: AppTheme.body,
+          ),
+        ),
       for (final post in posts)
-        CommunityPostCard(
-          user: post.user,
-          handle: post.handle,
-          time: post.time,
-          text: post.text,
-          asset: post.asset,
-          likes: post.likes + (_likedCommunityPosts.contains(post) ? 1 : 0),
-          replies: post.replies,
-          liked: _likedCommunityPosts.contains(post),
-          sourceLabel: _communityFeed == 0
-              ? 'For you'
-              : 'Following ${post.handle}',
-          onReply: () => _openCommunityPost(context, post),
-          onLike: () => _toggleCommunityPostLike(post),
-          onTap: () => _openCommunityPost(context, post),
+        Builder(
+          builder: (context) {
+            final liked = widget.store.isCommunityPostLiked(post.id);
+            final extraReplies = widget.store.communityRepliesFor(post.id);
+            return CommunityPostCard(
+              user: post.user,
+              handle: post.handle,
+              time: post.time,
+              text: post.text,
+              asset: post.asset,
+              likes: post.likes + (liked ? 1 : 0),
+              replies: post.replies + extraReplies.length,
+              liked: liked,
+              sourceLabel: _communityFeed == 0
+                  ? 'For you'
+                  : 'Following ${post.handle}',
+              onReply: () => _openCommunityPost(context, post),
+              onLike: () => _toggleCommunityPostLike(post),
+              onTap: () => _openCommunityPost(context, post),
+            );
+          },
         ),
     ];
   }
 
   void _toggleCommunityPostLike(_CommunityPost post) {
-    setState(() {
-      if (_likedCommunityPosts.contains(post)) {
-        _likedCommunityPosts.remove(post);
-      } else {
-        _likedCommunityPosts.add(post);
-      }
-    });
+    widget.store.toggleCommunityPostLike(post.id);
   }
 
   void _openCommunityPost(BuildContext context, _CommunityPost post) {
@@ -475,20 +551,7 @@ class _HomeScreenState extends State<HomeScreen> {
         transitionDuration: const Duration(milliseconds: 320),
         reverseTransitionDuration: const Duration(milliseconds: 240),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            _CommunityThreadScreen(
-              post: post,
-              initiallyLiked: _likedCommunityPosts.contains(post),
-              onLikeChanged: (liked) {
-                if (!mounted) return;
-                setState(() {
-                  if (liked) {
-                    _likedCommunityPosts.add(post);
-                  } else {
-                    _likedCommunityPosts.remove(post);
-                  }
-                });
-              },
-            ),
+            _CommunityThreadScreen(store: widget.store, post: post),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
@@ -513,6 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _CommunityPost {
   const _CommunityPost({
+    required this.id,
     required this.user,
     required this.handle,
     required this.time,
@@ -523,6 +587,7 @@ class _CommunityPost {
     required this.replyItems,
   });
 
+  final String id;
   final String user;
   final String handle;
   final String time;
@@ -552,8 +617,19 @@ class _CommunityReply {
 String _communityReplyKey(_CommunityReply reply) =>
     '${reply.user}|${reply.handle}|${reply.time}|${reply.text}';
 
+_CommunityReply _replyFromRecord(CommunityReplyRecord reply) {
+  return _CommunityReply(
+    user: reply.user,
+    handle: reply.handle,
+    time: reply.time,
+    text: reply.text,
+    asset: reply.asset,
+  );
+}
+
 const _communityPosts = [
   _CommunityPost(
+    id: 'vintage-audio-earbuds',
     user: 'VintageAudioCo',
     handle: '@vintageaudioco',
     time: '18m',
@@ -579,6 +655,7 @@ const _communityPosts = [
     ],
   ),
   _CommunityPost(
+    id: 'palm-battery-photos',
     user: 'PalmPilotFan',
     handle: '@palmpilotfan',
     time: '1h',
@@ -605,6 +682,7 @@ const _communityPosts = [
     ],
   ),
   _CommunityPost(
+    id: 'pixelcam-transparent-photos',
     user: 'PixelCam Studio',
     handle: '@pixelcam',
     time: 'Yesterday',
@@ -634,15 +712,10 @@ const _communityPosts = [
 ];
 
 class _CommunityThreadScreen extends StatefulWidget {
-  const _CommunityThreadScreen({
-    required this.post,
-    required this.initiallyLiked,
-    required this.onLikeChanged,
-  });
+  const _CommunityThreadScreen({required this.store, required this.post});
 
+  final ListingStore store;
   final _CommunityPost post;
-  final bool initiallyLiked;
-  final ValueChanged<bool> onLikeChanged;
 
   @override
   State<_CommunityThreadScreen> createState() => _CommunityThreadScreenState();
@@ -651,15 +724,6 @@ class _CommunityThreadScreen extends StatefulWidget {
 class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _replyFocusNode = FocusNode();
-  late final List<_CommunityReply> _replies = [...widget.post.replyItems];
-  final Set<_CommunityReply> _likedReplies = <_CommunityReply>{};
-  late bool _liked;
-
-  @override
-  void initState() {
-    super.initState();
-    _liked = widget.initiallyLiked;
-  }
 
   @override
   void dispose() {
@@ -669,30 +733,31 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
   }
 
   void _toggleLike() {
-    setState(() => _liked = !_liked);
-    widget.onLikeChanged(_liked);
+    widget.store.toggleCommunityPostLike(widget.post.id);
   }
 
-  void _sendReply() {
+  Future<void> _sendReply() async {
     final text = _replyController.text.trim();
     if (text.isEmpty) {
       _focusReplyInput();
       showAppSnackBar(context, 'Write a reply first.');
       return;
     }
-    setState(() {
-      _replies.insert(
-        0,
-        _CommunityReply(
-          user: 'RetroTech Collector',
-          handle: '@retrotech',
-          time: 'Now',
-          text: text,
-          asset: Assets.logoMark,
-        ),
-      );
-      _replyController.clear();
-    });
+    final now = DateTime.now();
+    await widget.store.addCommunityReply(
+      CommunityReplyRecord(
+        id: 'reply-${now.microsecondsSinceEpoch}',
+        postId: widget.post.id,
+        user: 'RetroTech Collector',
+        handle: '@retrotech',
+        time: 'Now',
+        text: text,
+        asset: Assets.logoMark,
+        createdAt: now,
+      ),
+    );
+    if (!mounted) return;
+    _replyController.clear();
   }
 
   void _focusReplyInput() {
@@ -711,147 +776,154 @@ class _CommunityThreadScreenState extends State<_CommunityThreadScreen> {
   }
 
   void _toggleReplyLike(_CommunityReply reply) {
-    final liked = !_likedReplies.contains(reply);
-    setState(() {
-      if (liked) {
-        _likedReplies.add(reply);
-      } else {
-        _likedReplies.remove(reply);
-      }
-    });
+    final replyId = _communityReplyKey(reply);
+    final liked = !widget.store.isCommunityReplyLiked(replyId);
+    widget.store.toggleCommunityReplyLike(replyId);
     showAppSnackBar(context, liked ? 'Reply liked.' : 'Reply unliked.');
   }
 
   @override
   Widget build(BuildContext context) {
     final metrics = ResponsiveMetrics.of(context);
-    final likeCount = widget.post.likes + (_liked ? 1 : 0);
-    final replyCount =
-        widget.post.replies + _replies.length - widget.post.replyItems.length;
+    return AnimatedBuilder(
+      animation: widget.store,
+      builder: (context, _) {
+        final liked = widget.store.isCommunityPostLiked(widget.post.id);
+        final storedReplies = widget.store.communityRepliesFor(widget.post.id);
+        final replies = [
+          ...storedReplies.map(_replyFromRecord),
+          ...widget.post.replyItems,
+        ];
+        final likeCount = widget.post.likes + (liked ? 1 : 0);
+        final replyCount = widget.post.replies + storedReplies.length;
 
-    return GlassScaffold(
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              metrics.pagePadding,
-              metrics.topGap,
-              metrics.pagePadding,
-              0,
-            ),
-            child: TopBar(title: 'Post', showTrailing: false),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                metrics.pagePadding,
-                18,
-                metrics.pagePadding,
-                18,
+        return GlassScaffold(
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.pagePadding,
+                  metrics.topGap,
+                  metrics.pagePadding,
+                  0,
+                ),
+                child: TopBar(title: 'Post', showTrailing: false),
               ),
-              children: [
-                GlassCard(
-                  padding: EdgeInsets.all(18),
-                  radius: metrics.cardRadius,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _CommunityPostBody(
-                        post: widget.post,
-                        likeCount: likeCount,
-                        replyCount: replyCount,
-                        liked: _liked,
-                        onReply: _focusReplyInput,
-                        onLike: _toggleLike,
-                      ),
-                      SizedBox(height: 18),
-                      Container(
-                        height: 1,
-                        color: Colors.white.withValues(alpha: 0.72),
-                      ),
-                      SizedBox(height: 14),
-                      Row(
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    metrics.pagePadding,
+                    18,
+                    metrics.pagePadding,
+                    18,
+                  ),
+                  children: [
+                    GlassCard(
+                      padding: EdgeInsets.all(18),
+                      radius: metrics.cardRadius,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              'Relevant replies',
-                              style: AppTheme.h2.copyWith(fontSize: 17),
-                            ),
+                          _CommunityPostBody(
+                            post: widget.post,
+                            likeCount: likeCount,
+                            replyCount: replyCount,
+                            liked: liked,
+                            onReply: _focusReplyInput,
+                            onLike: _toggleLike,
                           ),
-                          Text(
-                            'Latest first',
-                            style: AppTheme.label.copyWith(
-                              color: AppTheme.muted,
-                            ),
+                          SizedBox(height: 18),
+                          Container(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.72),
                           ),
+                          SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Relevant replies',
+                                  style: AppTheme.h2.copyWith(fontSize: 17),
+                                ),
+                              ),
+                              Text(
+                                'Latest first',
+                                style: AppTheme.label.copyWith(
+                                  color: AppTheme.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          for (final reply in replies)
+                            _CommunityReplyTile(
+                              key: ObjectKey(reply),
+                              reply: reply,
+                              liked: widget.store.isCommunityReplyLiked(
+                                _communityReplyKey(reply),
+                              ),
+                              onReply: () => _replyTo(reply),
+                              onLike: () => _toggleReplyLike(reply),
+                            ),
                         ],
                       ),
-                      SizedBox(height: 4),
-                      for (final reply in _replies)
-                        _CommunityReplyTile(
-                          key: ObjectKey(reply),
-                          reply: reply,
-                          liked: _likedReplies.contains(reply),
-                          onReply: () => _replyTo(reply),
-                          onLike: () => _toggleReplyLike(reply),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.pagePadding,
+                  6,
+                  metrics.pagePadding,
+                  18 + metrics.bottomSafeInset,
+                ),
+                child: GlassCard(
+                  radius: 999,
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Row(
+                    children: [
+                      ClipOval(
+                        child: ProductImage(
+                          asset: Assets.logoMark,
+                          width: 34,
+                          height: 34,
                         ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _replyController,
+                          focusNode: _replyFocusNode,
+                          onSubmitted: (_) => _sendReply(),
+                          minLines: 1,
+                          maxLines: 3,
+                          style: TextStyle(
+                            color: AppTheme.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Reply to ${widget.post.user}',
+                            hintStyle: AppTheme.body,
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                      CircleGlassButton(
+                        key: const ValueKey('community-send-reply'),
+                        icon: Icons.arrow_upward_rounded,
+                        color: AppTheme.blue,
+                        size: 40,
+                        onTap: _sendReply,
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              metrics.pagePadding,
-              6,
-              metrics.pagePadding,
-              18 + metrics.bottomSafeInset,
-            ),
-            child: GlassCard(
-              radius: 999,
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              child: Row(
-                children: [
-                  ClipOval(
-                    child: ProductImage(
-                      asset: Assets.logoMark,
-                      width: 34,
-                      height: 34,
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _replyController,
-                      focusNode: _replyFocusNode,
-                      onSubmitted: (_) => _sendReply(),
-                      minLines: 1,
-                      maxLines: 3,
-                      style: TextStyle(
-                        color: AppTheme.ink,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Reply to ${widget.post.user}',
-                        hintStyle: AppTheme.body,
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  CircleGlassButton(
-                    key: const ValueKey('community-send-reply'),
-                    icon: Icons.arrow_upward_rounded,
-                    color: AppTheme.blue,
-                    size: 40,
-                    onTap: _sendReply,
-                  ),
-                ],
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

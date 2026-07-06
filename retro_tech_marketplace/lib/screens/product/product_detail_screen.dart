@@ -632,7 +632,11 @@ class ProductDetailPanel extends StatelessWidget {
                   ),
                   SizedBox(
                     width: chipWidth,
-                    child: SpecChip(Icons.music_note_rounded, '10K+', 'Songs'),
+                    child: SpecChip(
+                      Icons.grade_rounded,
+                      item.condition.replaceAll('\n', ' - '),
+                      'Condition',
+                    ),
                   ),
                   SizedBox(
                     width: chipWidth,

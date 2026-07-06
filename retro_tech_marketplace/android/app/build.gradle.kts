@@ -1,4 +1,5 @@
 import java.io.FileInputStream
+import org.gradle.api.GradleException
 import java.util.Properties
 
 plugins {
@@ -10,6 +11,9 @@ plugins {
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
+val requestedReleaseBuild = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true)
+}
 if (hasReleaseKeystore) {
     FileInputStream(keystorePropertiesFile).use {
         keystoreProperties.load(it)
@@ -56,10 +60,13 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (hasReleaseKeystore) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            if (!hasReleaseKeystore && requestedReleaseBuild) {
+                throw GradleException(
+                    "Missing android/key.properties for release signing."
+                )
+            }
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

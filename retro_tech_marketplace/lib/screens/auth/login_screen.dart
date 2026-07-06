@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _remember = true;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -120,13 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               GestureDetector(
                 key: const ValueKey('forgot-password-link'),
-                onTap: () => showInfoSheet(
-                  context,
-                  icon: Icons.lock_reset_rounded,
-                  title: 'Password reset is not connected',
-                  body:
-                      'RetroTech does not have an email recovery service connected yet. Use your demo account password to sign in.',
-                ),
+                onTap: () => _showPasswordReset(context),
                 child: Text(
                   'Forgot password?',
                   overflow: TextOverflow.ellipsis,
@@ -140,9 +135,9 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 28),
           LiquidButton(
-            label: 'Log In',
+            label: _submitting ? 'Checking...' : 'Log In',
             icon: Icons.arrow_forward_rounded,
-            onPressed: () => Navigator.pushReplacementNamed(context, '/main'),
+            onPressed: _handleLogin,
           ),
           SizedBox(height: 40),
           Center(child: SocialLoginCluster(store: widget.store)),
@@ -164,6 +159,139 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleLogin() async {
+    if (_submitting) return;
+    final identifier = _email.text.trim();
+    final password = _password.text;
+    if (identifier.isEmpty || password.isEmpty) {
+      showAppSnackBar(context, 'Enter username and password.');
+      return;
+    }
+    setState(() => _submitting = true);
+    final authenticated = await widget.store.signInWithLocalAccount(
+      identifier: identifier,
+      password: password,
+    );
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (!authenticated) {
+      showAppSnackBar(context, 'Invalid username or password.');
+      return;
+    }
+    Navigator.pushReplacementNamed(context, '/main');
+  }
+
+  Future<void> _showPasswordReset(BuildContext context) async {
+    final identifierController = TextEditingController();
+    final passwordController = TextEditingController();
+    var message = '';
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.white.withValues(alpha: 0.38),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                child: GlassCard(
+                  radius: 28,
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+                  opacity: 0.84,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lock_reset_rounded,
+                        color: AppTheme.blue,
+                        size: 30,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Reset Local Password',
+                        style: AppTheme.h2.copyWith(fontSize: 20),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Reset the password for your locally registered account. The default account stays ABC / 123.',
+                        style: AppTheme.body.copyWith(height: 1.45),
+                      ),
+                      const SizedBox(height: 14),
+                      GlassInput(
+                        key: const ValueKey('reset-username-field'),
+                        controller: identifierController,
+                        hint: 'Username or Email',
+                        icon: Icons.person_outline_rounded,
+                      ),
+                      const SizedBox(height: 12),
+                      GlassInput(
+                        key: const ValueKey('reset-password-field'),
+                        controller: passwordController,
+                        hint: 'New Password',
+                        icon: Icons.lock_outline_rounded,
+                        obscure: true,
+                      ),
+                      if (message.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          message,
+                          style: AppTheme.body.copyWith(
+                            color: AppTheme.red,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      LiquidButton(
+                        label: 'Reset Password',
+                        height: 48,
+                        onPressed: () async {
+                          final identifier = identifierController.text.trim();
+                          final newPassword = passwordController.text;
+                          if (identifier.isEmpty || newPassword.isEmpty) {
+                            setSheetState(
+                              () => message = 'Enter account and new password.',
+                            );
+                            return;
+                          }
+                          if (DemoAuthService.isDefaultAccount(identifier)) {
+                            setSheetState(
+                              () => message =
+                                  'Default account remains ABC / 123.',
+                            );
+                            return;
+                          }
+                          final changed = await widget.store.resetLocalPassword(
+                            identifier: identifier,
+                            newPassword: newPassword,
+                          );
+                          if (!sheetContext.mounted) return;
+                          if (!changed) {
+                            setSheetState(
+                              () => message = 'No local account found.',
+                            );
+                            return;
+                          }
+                          Navigator.pop(sheetContext);
+                          if (!mounted) return;
+                          showAppSnackBar(context, 'Password reset locally.');
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    identifierController.dispose();
+    passwordController.dispose();
   }
 }
 

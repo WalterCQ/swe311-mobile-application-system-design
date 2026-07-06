@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'store/listing_store.dart';
@@ -23,12 +25,19 @@ import 'screens/settings/chat_thread_screen.dart';
 import 'screens/settings/help_support_screen.dart';
 import 'screens/settings/about_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'services/local_notification_service.dart';
 import 'widgets/update_prompt.dart';
 
 class RetroTechApp extends StatefulWidget {
-  const RetroTechApp({super.key, required this.store});
+  RetroTechApp({
+    super.key,
+    required this.store,
+    LocalNotificationService? notificationService,
+  }) : notificationService =
+           notificationService ?? LocalNotificationService.instance;
 
   final ListingStore store;
+  final LocalNotificationService notificationService;
 
   @override
   State<RetroTechApp> createState() => _RetroTechAppState();
@@ -37,6 +46,7 @@ class RetroTechApp extends StatefulWidget {
 class _RetroTechAppState extends State<RetroTechApp> {
   late final Future<void> _loadFuture = widget.store.load();
   final _navigatorKey = GlobalKey<NavigatorState>();
+  Timer? _demoNotificationTimer;
 
   @override
   void initState() {
@@ -46,6 +56,16 @@ class _RetroTechAppState extends State<RetroTechApp> {
         _checkForUpdatesAfterLaunch();
       });
     }
+    widget.notificationService.initialize();
+    _demoNotificationTimer = Timer(const Duration(minutes: 1), () {
+      _showLaunchTestNotification();
+    });
+  }
+
+  @override
+  void dispose() {
+    _demoNotificationTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -152,6 +172,7 @@ class _RetroTechAppState extends State<RetroTechApp> {
       case '/chat':
         final argument = settings.arguments;
         page = ChatThreadScreen(
+          store: widget.store,
           listing: argument is Listing ? argument : null,
           sellerName: argument is String ? argument : null,
         );
@@ -160,7 +181,7 @@ class _RetroTechAppState extends State<RetroTechApp> {
         page = HelpSupportScreen();
         break;
       case '/about':
-        page = AboutScreen();
+        page = AboutScreen(store: widget.store);
         break;
       case '/login':
       default:
@@ -216,5 +237,10 @@ class _RetroTechAppState extends State<RetroTechApp> {
       service: const UpdateService(),
       userInitiated: false,
     );
+  }
+
+  void _showLaunchTestNotification() {
+    if (!mounted || !widget.store.notifications) return;
+    widget.notificationService.showLaunchTestNotification();
   }
 }

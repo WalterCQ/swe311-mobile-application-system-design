@@ -21,12 +21,16 @@ class _MainShellState extends State<MainShell> {
   late int _index = _shellIndexFor(widget.initialIndex);
   late final _categoriesSearchController = CategoriesSearchController();
   late final List<Widget> _pages = [
-    HomeScreen(store: widget.store, onSearchTap: _openCategorySearch),
+    HomeScreen(
+      store: widget.store,
+      onSearchTap: _openCategorySearch,
+      onProfileTap: _openProfile,
+    ),
     CategoriesScreen(
       store: widget.store,
       searchTrigger: _categoriesSearchController,
     ),
-    InboxScreen(inShell: true),
+    InboxScreen(store: widget.store, inShell: true),
     AccountProfileScreen(store: widget.store),
   ];
 
@@ -41,6 +45,10 @@ class _MainShellState extends State<MainShell> {
       if (!mounted) return;
       _categoriesSearchController.openSearch();
     });
+  }
+
+  void _openProfile() {
+    setState(() => _index = 3);
   }
 
   @override

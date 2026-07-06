@@ -56,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: AppTheme.body.copyWith(fontSize: 12),
                           ),
                           Text(
-                            'Profile, privacy, support, and app updates',
+                            'Profile, local demo settings, and app updates',
                             style: AppTheme.body.copyWith(fontSize: 11),
                           ),
                         ],
@@ -71,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsSwitch(
                     Icons.notifications_outlined,
                     'Notifications',
-                    'Order, message, and listing activity alerts',
+                    'One-minute launch test notification only',
                     widget.store.notifications,
                     (value) {
                       widget.store.setNotifications(value);
@@ -80,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsSwitch(
                     Icons.lock_outline_rounded,
                     'Privacy',
-                    'Keep your saved items and profile activity private',
+                    'Hide saved item count on your profile',
                     widget.store.privacy,
                     (value) {
                       widget.store.setPrivacy(value);

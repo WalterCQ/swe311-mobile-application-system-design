@@ -24,6 +24,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _agree = true;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -112,7 +113,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     icon: Icons.privacy_tip_outlined,
                     title: 'Terms & Privacy Policy',
                     body:
-                        'RetroTech keeps account, listing, payment, and message data inside this coursework demo. A full legal policy page has not been connected yet.',
+                        'RetroTech keeps account, listing, order, chat, and community data inside this local coursework demo. No real payment, OAuth, or remote notification service is used.',
                   ),
                   child: RichText(
                     text: TextSpan(
@@ -135,9 +136,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           ),
           SizedBox(height: 26),
           LiquidButton(
-            label: 'Create Account',
+            label: _submitting ? 'Creating...' : 'Create Account',
             icon: Icons.arrow_forward_rounded,
-            onPressed: () => Navigator.pushReplacementNamed(context, '/main'),
+            onPressed: _handleRegistration,
           ),
           SizedBox(height: 30),
           Wrap(
@@ -157,5 +158,38 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleRegistration() async {
+    if (_submitting) return;
+    final name = _name.text.trim();
+    final email = _email.text.trim();
+    final password = _password.text;
+    final confirm = _confirm.text;
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      showAppSnackBar(context, 'Complete all account fields.');
+      return;
+    }
+    if (!email.contains('@')) {
+      showAppSnackBar(context, 'Enter a valid email address.');
+      return;
+    }
+    if (password != confirm) {
+      showAppSnackBar(context, 'Passwords do not match.');
+      return;
+    }
+    if (!_agree) {
+      showAppSnackBar(context, 'Agree to the terms first.');
+      return;
+    }
+    setState(() => _submitting = true);
+    await widget.store.registerLocalAccount(
+      displayName: name,
+      email: email,
+      password: password,
+    );
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    Navigator.pushReplacementNamed(context, '/main');
   }
 }

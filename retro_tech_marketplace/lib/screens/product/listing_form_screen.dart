@@ -108,136 +108,142 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
             }
           : null,
       children: [
-        FormSection(
-          title: 'Photo',
-          subtitle: 'Tap the preview to upload a local product photo.',
-        ),
-        Semantics(
-          button: true,
-          label: 'Upload product photo',
-          child: GestureDetector(
-            onTap: _pickImage,
-            child: GlassCard(
-              height: 136,
-              radius: 26,
-              padding: EdgeInsets.all(12),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ProductImage(asset: _asset, width: 102, height: 74),
-                    SizedBox(height: 6),
-                    Row(
+        GlassFormPanel(
+          children: [
+            FormSection(
+              title: 'Photo',
+              subtitle: 'Tap the preview to upload a local product photo.',
+            ),
+            Semantics(
+              button: true,
+              label: 'Upload product photo',
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: GlassCard(
+                  height: 136,
+                  radius: 26,
+                  padding: EdgeInsets.all(12),
+                  child: Center(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.upload_file_rounded,
-                          color: AppTheme.blue,
-                          size: 16,
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          _isLocalImage
-                              ? 'Photo uploaded'
-                              : 'Upload product photo',
-                          style: AppTheme.body.copyWith(fontSize: 12),
+                        ProductImage(asset: _asset, width: 102, height: 74),
+                        SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.upload_file_rounded,
+                              color: AppTheme.blue,
+                              size: 16,
+                            ),
+                            SizedBox(width: 5),
+                            Text(
+                              _isLocalImage
+                                  ? 'Photo uploaded'
+                                  : 'Upload product photo',
+                              style: AppTheme.body.copyWith(fontSize: 12),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-        SizedBox(height: 18),
-        FormSection(
-          title: 'Basic Info',
-          subtitle:
-              'Use clear details buyers can scan before opening the item.',
-        ),
-        GlassInput(
-          controller: _title,
-          label: 'Product Title',
-          hint: 'Sony Walkman WM-EX',
-          icon: Icons.sell_outlined,
-          requiredField: true,
-          textInputAction: TextInputAction.next,
-          validator: _required('Enter a product title.'),
-        ),
-        SizedBox(height: 12),
-        _SelectableCardGroup(
-          value: _category,
-          options: _categoryOptions,
-          label: 'Category',
-          icon: Icons.category_outlined,
-          requiredField: true,
-          twoColumn: true,
-          onChanged: (value) => setState(() => _category = value),
-          validator: _required('Choose a category.'),
-        ),
-        SizedBox(height: 12),
-        GlassInput(
-          controller: _price,
-          label: 'Price',
-          hint: 'RM 499.00',
-          helperText: 'Enter the amount in Malaysian Ringgit.',
-          icon: Icons.paid_outlined,
-          requiredField: true,
-          keyboardType: TextInputType.numberWithOptions(decimal: true),
-          textInputAction: TextInputAction.next,
-          validator: _priceValidator,
-        ),
-        SizedBox(height: 12),
-        _SelectableCardGroup(
-          value: _condition,
-          options: _conditionOptions,
-          label: 'Condition',
-          icon: Icons.verified_outlined,
-          requiredField: true,
-          onChanged: (value) => setState(() => _condition = value),
-          validator: _required('Choose the item condition.'),
-        ),
-        SizedBox(height: 18),
-        FormSection(
-          title: 'Specs',
-          subtitle: 'Keep comparable details consistent across your listings.',
-        ),
-        GlassInput(
-          controller: _storage,
-          label: 'Storage',
-          hint: '40GB',
-          icon: Icons.sd_storage_outlined,
-          textInputAction: TextInputAction.next,
-        ),
-        SizedBox(height: 12),
-        GlassInput(
-          controller: _battery,
-          label: 'Battery Life',
-          hint: '14h',
-          icon: Icons.battery_5_bar_outlined,
-          textInputAction: TextInputAction.next,
-        ),
-        SizedBox(height: 12),
-        GlassInput(
-          controller: _connector,
-          label: 'Connector',
-          hint: '30-Pin',
-          icon: Icons.cable_outlined,
-          textInputAction: TextInputAction.next,
-        ),
-        SizedBox(height: 18),
-        FormSection(
-          title: 'Description',
-          subtitle: 'Mention included items, visible wear, and buyer notes.',
-        ),
-        GlassInput(
-          controller: _description,
-          label: 'Description',
-          hint: 'Collector-ready device with light wear.',
-          icon: Icons.notes_rounded,
-          maxLines: 3,
-          textInputAction: TextInputAction.newline,
+            SizedBox(height: 18),
+            FormSection(
+              title: 'Basic Info',
+              subtitle:
+                  'Use clear details buyers can scan before opening the item.',
+            ),
+            GlassInput(
+              controller: _title,
+              label: 'Product Title',
+              hint: 'Sony Walkman WM-EX',
+              icon: Icons.sell_outlined,
+              requiredField: true,
+              textInputAction: TextInputAction.next,
+              validator: _required('Enter a product title.'),
+            ),
+            SizedBox(height: 12),
+            _SelectableCardGroup(
+              value: _category,
+              options: _categoryOptions,
+              label: 'Category',
+              icon: Icons.category_outlined,
+              requiredField: true,
+              twoColumn: true,
+              onChanged: (value) => setState(() => _category = value),
+              validator: _required('Choose a category.'),
+            ),
+            SizedBox(height: 12),
+            GlassInput(
+              controller: _price,
+              label: 'Price',
+              hint: 'RM 499.00',
+              helperText: 'Enter the amount in Malaysian Ringgit.',
+              icon: Icons.paid_outlined,
+              requiredField: true,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.next,
+              validator: _priceValidator,
+            ),
+            SizedBox(height: 12),
+            _SelectableCardGroup(
+              value: _condition,
+              options: _conditionOptions,
+              label: 'Condition',
+              icon: Icons.verified_outlined,
+              requiredField: true,
+              onChanged: (value) => setState(() => _condition = value),
+              validator: _required('Choose the item condition.'),
+            ),
+            SizedBox(height: 18),
+            FormSection(
+              title: 'Specs',
+              subtitle:
+                  'Keep comparable details consistent across your listings.',
+            ),
+            GlassInput(
+              controller: _storage,
+              label: 'Storage',
+              hint: '40GB',
+              icon: Icons.sd_storage_outlined,
+              textInputAction: TextInputAction.next,
+            ),
+            SizedBox(height: 12),
+            GlassInput(
+              controller: _battery,
+              label: 'Battery Life',
+              hint: '14h',
+              icon: Icons.battery_5_bar_outlined,
+              textInputAction: TextInputAction.next,
+            ),
+            SizedBox(height: 12),
+            GlassInput(
+              controller: _connector,
+              label: 'Connector',
+              hint: '30-Pin',
+              icon: Icons.cable_outlined,
+              textInputAction: TextInputAction.next,
+            ),
+            SizedBox(height: 18),
+            FormSection(
+              title: 'Description',
+              subtitle:
+                  'Mention included items, visible wear, and buyer notes.',
+            ),
+            GlassInput(
+              controller: _description,
+              label: 'Description',
+              hint: 'Collector-ready device with light wear.',
+              icon: Icons.notes_rounded,
+              maxLines: 3,
+              textInputAction: TextInputAction.newline,
+            ),
+          ],
         ),
       ],
     );

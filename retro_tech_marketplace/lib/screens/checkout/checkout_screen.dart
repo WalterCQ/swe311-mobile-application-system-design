@@ -108,8 +108,8 @@ class CheckoutScreen extends StatelessWidget {
               right: 22,
               bottom: 22,
               child: LiquidButton(
-                label: 'Pay Securely',
-                icon: Icons.lock_outline_rounded,
+                label: 'Place Order',
+                icon: Icons.inventory_2_outlined,
                 onPressed: () async {
                   final order = await store.createOrder(item);
                   if (!context.mounted) return;
