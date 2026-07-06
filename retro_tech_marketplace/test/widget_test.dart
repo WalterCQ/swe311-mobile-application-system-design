@@ -30,6 +30,7 @@ import 'package:retro_tech_marketplace/screens/profile/account_profile_screen.da
 import 'package:retro_tech_marketplace/screens/profile/edit_profile_screen.dart';
 import 'package:retro_tech_marketplace/screens/profile/payment_methods_screen.dart';
 import 'package:retro_tech_marketplace/screens/profile/seller_profile_screen.dart';
+import 'package:retro_tech_marketplace/screens/profile/saved_items_screen.dart';
 import 'package:retro_tech_marketplace/services/update_service.dart';
 import 'package:retro_tech_marketplace/widgets/glass_scaffold.dart';
 import 'package:retro_tech_marketplace/screens/home/categories_screen.dart';
@@ -219,10 +220,7 @@ void main() {
     );
     expect(find.byKey(const ValueKey('home-search-button')), findsNothing);
     expect(find.text('For you'), findsWidgets);
-    expect(find.text('Following'), findsOneWidget);
-
-    await tester.tap(find.text('Following').first);
-    await tester.pumpAndSettle();
+    expect(find.text('Following'), findsNothing);
     await tester.ensureVisible(
       find.byKey(const ValueKey('community-card-like-PalmPilotFan')),
     );
@@ -796,6 +794,36 @@ void main() {
     expect(find.text('Order Detail'), findsOneWidget);
   });
 
+  testWidgets('order screens hide unused overflow actions', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = testStore();
+    await store.load();
+    final order = await store.createOrder(seedListings.first);
+    setPhoneSize(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: OrdersScreen(store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Orders'), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: OrderDetailScreen(store: store, order: order),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Order Detail'), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+  });
+
   testWidgets('delivery address lookup suggestion saves checkout address', (
     WidgetTester tester,
   ) async {
@@ -1041,6 +1069,16 @@ void main() {
     expect(find.text('Saved Items'), findsOneWidget);
     expect(find.text('Delivery Address'), findsOneWidget);
     expect(store.savedListings, hasLength(1));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: SavedItemsScreen(store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Saved Items'), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
 
     await tester.pumpWidget(
       MaterialApp(

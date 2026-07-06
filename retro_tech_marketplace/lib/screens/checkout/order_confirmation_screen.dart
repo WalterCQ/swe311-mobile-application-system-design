@@ -354,7 +354,7 @@ class OrdersScreen extends StatelessWidget {
           return ListView(
             padding: EdgeInsets.fromLTRB(22, 18, 22, 30),
             children: [
-              TopBar(title: 'Orders'),
+              TopBar(title: 'Orders', showTrailing: false),
               SizedBox(height: 20),
               if (orders.isEmpty)
                 GlassCard(
@@ -421,7 +421,7 @@ class OrderDetailScreen extends StatelessWidget {
           child: ListView(
             padding: EdgeInsets.fromLTRB(22, 18, 22, 30),
             children: [
-              TopBar(title: 'Order Detail'),
+              TopBar(title: 'Order Detail', showTrailing: false),
               SizedBox(height: 20),
               _OrderCard(order: item),
               SizedBox(height: 18),

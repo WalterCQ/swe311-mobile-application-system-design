@@ -22,7 +22,7 @@ class SavedItemsScreen extends StatelessWidget {
           return ListView(
             padding: EdgeInsets.fromLTRB(22, 18, 22, 30),
             children: [
-              TopBar(title: 'Saved Items'),
+              TopBar(title: 'Saved Items', showTrailing: false),
               SizedBox(height: 20),
               if (items.isEmpty)
                 GlassCard(

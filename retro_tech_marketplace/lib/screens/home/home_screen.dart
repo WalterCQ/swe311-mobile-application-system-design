@@ -269,7 +269,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _segment = 0;
-  int _communityFeed = 0;
   final Set<_CommunityPost> _likedCommunityPosts = <_CommunityPost>{};
 
   @override
@@ -402,11 +401,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _communityContent(BuildContext context) {
     final posts = [..._communityPosts];
-    if (_communityFeed == 0) {
-      posts.sort(
-        (a, b) => (b.likes + b.replies * 2).compareTo(a.likes + a.replies * 2),
-      );
-    }
+    posts.sort(
+      (a, b) => (b.likes + b.replies * 2).compareTo(a.likes + a.replies * 2),
+    );
 
     return [
       Row(
@@ -418,10 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: AppTheme.h1.copyWith(fontSize: 30, height: 1),
             ),
           ),
-          Text(
-            _communityFeed == 0 ? 'Recommended' : 'Latest',
-            style: AppTheme.label.copyWith(color: AppTheme.muted),
-          ),
+          Text('Latest', style: AppTheme.label.copyWith(color: AppTheme.muted)),
         ],
       ),
       SizedBox(height: 10),
@@ -430,14 +424,6 @@ class _HomeScreenState extends State<HomeScreen> {
         style: AppTheme.body,
       ),
       SizedBox(height: 16),
-      _CommunityFeedSwitch(
-        value: _communityFeed,
-        onChanged: (value) {
-          if (_communityFeed == value) return;
-          setState(() => _communityFeed = value);
-        },
-      ),
-      SizedBox(height: 14),
       for (final post in posts)
         CommunityPostCard(
           user: post.user,
@@ -448,9 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
           likes: post.likes + (_likedCommunityPosts.contains(post) ? 1 : 0),
           replies: post.replies,
           liked: _likedCommunityPosts.contains(post),
-          sourceLabel: _communityFeed == 0
-              ? 'For you'
-              : 'Following ${post.handle}',
+          sourceLabel: 'For you',
           onReply: () => _openCommunityPost(context, post),
           onLike: () => _toggleCommunityPostLike(post),
           onTap: () => _openCommunityPost(context, post),
@@ -1307,95 +1291,6 @@ class HomeSegmentControl extends StatelessWidget {
   }
 }
 
-class _CommunityFeedSwitch extends StatelessWidget {
-  const _CommunityFeedSwitch({required this.value, required this.onChanged});
-
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      height: 50,
-      radius: 24,
-      padding: EdgeInsets.zero,
-      opacity: 0.48,
-      child: Row(
-        children: [
-          _CommunityFeedTab(
-            label: 'For you',
-            active: value == 0,
-            onTap: () => onChanged(0),
-          ),
-          _CommunityFeedTab(
-            label: 'Following',
-            active: value == 1,
-            onTap: () => onChanged(1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CommunityFeedTab extends StatelessWidget {
-  const _CommunityFeedTab({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: LiquidPressable(
-        onTap: onTap,
-        active: active,
-        borderRadius: BorderRadius.circular(24),
-        glowColor: AppTheme.blue,
-        pressedScale: 0.98,
-        child: SizedBox.expand(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AnimatedDefaultTextStyle(
-                duration: Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  color: active ? AppTheme.ink : AppTheme.muted,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SizedBox(height: 6),
-              AnimatedContainer(
-                duration: Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                width: active ? 34 : 0,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: AppTheme.blue,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class SegmentPill extends StatelessWidget {
   const SegmentPill(this.label, this.active, this.onTap, {super.key});
