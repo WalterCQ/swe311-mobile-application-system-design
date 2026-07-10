@@ -26,7 +26,7 @@ class AppUpdateInfo {
 class UpdateService {
   const UpdateService();
 
-  static const fallbackVersion = '1.1.6';
+  static const fallbackVersion = '1.2.0';
   static const repository = 'WalterCQ/SWE311-retro-tech-marketplace';
   static const releasePageUrl =
       'https://github.com/$repository/releases/latest';

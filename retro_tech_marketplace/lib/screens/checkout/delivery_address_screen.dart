@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../constants/theme.dart';
 import '../../models/delivery_address.dart';
@@ -529,6 +530,32 @@ class _LocationPanel extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: ColoredBox(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      child: Padding(
+                        padding: EdgeInsets.all(3),
+                        child: TextSourceAttribution(
+                          'OpenStreetMap contributors',
+                          textStyle: TextStyle(
+                            color: AppTheme.ink,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                          onTap: () async {
+                            await launchUrl(
+                              Uri.parse(
+                                'https://www.openstreetmap.org/copyright',
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

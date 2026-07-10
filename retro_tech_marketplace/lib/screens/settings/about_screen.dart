@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants/assets.dart';
 import '../../store/listing_store.dart';
 import '../../store/seed_data.dart';
@@ -902,7 +903,7 @@ class _HeadquartersMapCardState extends State<HeadquartersMapCard> {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Map data: OpenStreetMap contributors',
+                            'Map data: © OpenStreetMap contributors',
                             style: AboutText.metricLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -985,7 +986,7 @@ class _HeadquartersMapPreviewState extends State<HeadquartersMapPreview> {
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'RetroTechMarketplace/1.1.2',
+              userAgentPackageName: 'RetroTechMarketplace/1.2.0',
               maxNativeZoom: 19,
             ),
             MarkerLayer(
@@ -1008,6 +1009,30 @@ class _HeadquartersMapPreviewState extends State<HeadquartersMapPreview> {
                   ),
                 ),
               ],
+            ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: ColoredBox(
+                color: Colors.white.withValues(alpha: 0.82),
+                child: Padding(
+                  padding: EdgeInsets.all(3),
+                  child: TextSourceAttribution(
+                    'OpenStreetMap contributors',
+                    textStyle: TextStyle(
+                      color: aboutInk,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                    onTap: () async {
+                      await launchUrl(
+                        Uri.parse('https://www.openstreetmap.org/copyright'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
           ],
         ),

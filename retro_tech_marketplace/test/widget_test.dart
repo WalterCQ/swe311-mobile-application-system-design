@@ -58,7 +58,7 @@ void main() {
 
   test('update service checks the published release repository', () {
     expect(UpdateService.repository, 'WalterCQ/SWE311-retro-tech-marketplace');
-    expect(UpdateService.fallbackVersion, '1.1.6');
+    expect(UpdateService.fallbackVersion, '1.2.0');
   });
 
   test('release parser selects the first APK asset download URL', () {
@@ -1189,6 +1189,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Use current'), findsOneWidget);
+    expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
     expect(find.text('No delivery address selected'), findsOneWidget);
     expect(find.text('KLCC, Jalan Ampang'), findsNothing);
 
